@@ -41,10 +41,13 @@ mode:           one
 selected:       0
 
 programs:                                                                     \
-                hyperspace -root                                            \n\
-                hypertorus -root                                            \n\
+                wormhole -root                                              \n\
+                atunnel -root                                               \n\
+                timetunnel -root                                            \n\
+                starwars -root                                              \n\
                 glplanet -root                                              \n\
-                cosmos -root                                                \n\
+                hypertorus -root                                            \n\
                 lavalite -root                                              \n\
+                gleidescope -root                                           \n\
 
 pointerHysteresis: 10
