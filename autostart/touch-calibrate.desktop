@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Touch Calibration
+Exec=/usr/local/bin/calibrate-touch.sh
+Terminal=false
+X-GNOME-Autostart-enabled=true

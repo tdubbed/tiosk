@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Unclutter
+Exec=unclutter -idle 1 -root
+Terminal=false
+X-GNOME-Autostart-enabled=true

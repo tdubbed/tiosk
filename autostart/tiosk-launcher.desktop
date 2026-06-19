@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=TIOSK Launcher
+Exec=/home/kiosk/tiosk_launcher.py
+Terminal=false
+X-GNOME-Autostart-enabled=true

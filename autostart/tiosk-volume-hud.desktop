@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=TIOSK Volume HUD
+Exec=/usr/bin/python3 /home/kiosk/tiosk_volume_hud.py
+Terminal=false
+X-GNOME-Autostart-enabled=true
