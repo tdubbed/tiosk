@@ -6,12 +6,31 @@ import subprocess, os
 
 WALLPAPER = "/home/kiosk/wallpaper.jpg"
 
+def pause_mopidy():
+    subprocess.run(
+        ["curl", "-s", "-m", "2", "-X", "POST",
+         "-H", "Content-Type: application/json",
+         "-d", '{"jsonrpc":"2.0","id":1,"method":"core.playback.pause"}',
+         "http://localhost:6680/mopidy/rpc"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
 def launch_jukebox():
     root.lower()
     env = os.environ.copy()
     env["QT_IM_MODULE"] = "qtvirtualkeyboard"
     subprocess.run(["qiosk", "-f", "--profile-name", "kiosk",
                     "http://localhost:6680/iris/"], env=env)
+    root.lift()
+    root.attributes("-fullscreen", True)
+    root.focus_force()
+
+def launch_stream():
+    pause_mopidy()
+    root.lower()
+    env = os.environ.copy()
+    env["QT_IM_MODULE"] = "qtvirtualkeyboard"
+    subprocess.run(["qiosk", "-f", "--profile-name", "stream",
+                    "https://music.youtube.com/"], env=env)
     root.lift()
     root.attributes("-fullscreen", True)
     root.focus_force()
@@ -92,20 +111,23 @@ def make_pill(cx, cy, w, h, label, fill, accent, command):
     items.append(canvas.create_line(x1 + r, y1, x2 - r, y1, fill=accent, width=3))
     items.append(canvas.create_line(x1 + r, y2, x2 - r, y2, fill=accent, width=3))
     # Label
-    txt = canvas.create_text(cx, cy, text=label, font=("DejaVu Sans", 40, "bold"),
+    txt = canvas.create_text(cx, cy, text=label, font=("DejaVu Sans", 32, "bold"),
                               fill="#ffffff")
     items.append(txt)
     for item in items:
         canvas.tag_bind(item, "<Button-1>", lambda e: command())
 
-btn_y = SCREEN_H // 2 + 60
-btn_w, btn_h = 380, 130
-spacing = 60
-left_cx = SCREEN_W//2 - (btn_w + spacing) // 2
-right_cx = SCREEN_W//2 + (btn_w + spacing) // 2
+btn_y = SCREEN_H // 2 + 80
+btn_w, btn_h = 320, 110
+spacing = 40
+left_cx = SCREEN_W//2 - (btn_w + spacing)
+mid_cx = SCREEN_W//2
+right_cx = SCREEN_W//2 + (btn_w + spacing)
 
 make_pill(left_cx, btn_y, btn_w, btn_h, "JUKEBOX",
           "#1e3a5f", "#5fa8ff", launch_jukebox)
+make_pill(mid_cx, btn_y, btn_w, btn_h, "STREAM",
+          "#1e5f3a", "#5fff9f", launch_stream)
 make_pill(right_cx, btn_y, btn_w, btn_h, "ARCADE",
           "#5f1e3a", "#ff5fa8", launch_arcade)
 
