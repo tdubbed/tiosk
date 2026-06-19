@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=TIOSK Hide Cursor
+Exec=/home/kiosk/hide-cursor.sh
+Terminal=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=2

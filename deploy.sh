@@ -48,6 +48,8 @@ install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
     scripts/tiosk_launcher.py /home/"$KIOSK_USER"/tiosk_launcher.py
 install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
     scripts/tiosk_volume_hud.py /home/"$KIOSK_USER"/tiosk_volume_hud.py
+install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
+    scripts/hide-cursor.sh /home/"$KIOSK_USER"/hide-cursor.sh
 install -m 755 scripts/calibrate-touch.sh /usr/local/bin/calibrate-touch.sh
 
 if [ -f assets/wallpaper.jpg ]; then
