@@ -12,9 +12,10 @@
 BLANK="/home/kiosk/.blank.xbm"
 
 cat > "$BLANK" << 'EOF'
-#define blank_width 1
-#define blank_height 1
-static unsigned char blank_bits[] = { 0x00 };
+#define blank_width 8
+#define blank_height 8
+static unsigned char blank_bits[] = {
+   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 EOF
 
 xsetroot -cursor "$BLANK" "$BLANK"
