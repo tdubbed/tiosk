@@ -41,6 +41,7 @@ mode:           one
 selected:       0
 
 programs:                                                                     \
+                xmatrix -root                                               \n\
                 prococean -root                                             \n\
                 wormhole -root                                              \n\
                 atunnel -root                                               \n\
