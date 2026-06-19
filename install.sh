@@ -31,6 +31,7 @@ apt install -y \
     pulseaudio-utils pipewire-pulse pipewire-audio-client-libraries \
     xvkbd matchbox-keyboard \
     unclutter-xfixes \
+    xcursorgen \
     vim curl htop libxcb-cursor0
 
 # Mopidy-Iris via pip (not in apt)

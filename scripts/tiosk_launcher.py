@@ -76,6 +76,9 @@ def launch_jukebox():
     kill_current()
     env = os.environ.copy()
     env["QT_IM_MODULE"] = "qtvirtualkeyboard"
+    env["XCURSOR_THEME"] = "blank"
+    env["XCURSOR_PATH"] = "/home/kiosk/.icons:/usr/share/icons"
+    env["XCURSOR_SIZE"] = "1"
     root.lower()
     current_proc = subprocess.Popen(
         ["qiosk", "-f", "--profile-name", "kiosk",
@@ -93,6 +96,9 @@ def launch_stream():
     stop_mopidy()
     env = os.environ.copy()
     env["QT_IM_MODULE"] = "qtvirtualkeyboard"
+    env["XCURSOR_THEME"] = "blank"
+    env["XCURSOR_PATH"] = "/home/kiosk/.icons:/usr/share/icons"
+    env["XCURSOR_SIZE"] = "1"
     root.lower()
     current_proc = subprocess.Popen(
         ["qiosk", "-f", "--profile-name", "stream",
