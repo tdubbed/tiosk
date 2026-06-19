@@ -168,17 +168,12 @@ canvas.pack(fill="both", expand=True)
 canvas.create_image(0, 0, anchor="nw", image=photo)
 
 title_y = 130
-canvas.create_text(SCREEN_W // 2 + 2, title_y + 2, text="T  I  O  S  K",
+canvas.create_text(SCREEN_W // 2 + 2, title_y + 2, text="T-IOSK",
                    font=("DejaVu Sans", 56, "bold"),
                    fill="#000000")
-canvas.create_text(SCREEN_W // 2, title_y, text="T  I  O  S  K",
+canvas.create_text(SCREEN_W // 2, title_y, text="T-IOSK",
                    font=("DejaVu Sans", 56, "bold"),
                    fill="#a0d8ff")
-
-canvas.create_text(SCREEN_W // 2, title_y + 70,
-                   text="— a self-contained signal —",
-                   font=("DejaVu Sans", 14, "italic"),
-                   fill="#7090b0")
 
 
 def make_pill(cx, cy, w, h, label, fill, accent, command):
