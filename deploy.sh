@@ -75,16 +75,15 @@ pkill -f tiosk_launcher 2>/dev/null || true
 pkill -f tiosk_volume_hud 2>/dev/null || true
 sleep 1
 
-# Logs may be owned by a previous deployer; reset so kiosk can write them.
-rm -f /tmp/launcher.log /tmp/hud.log
-install -m 644 -o "$KIOSK_USER" -g "$KIOSK_USER" /dev/null /tmp/launcher.log
-install -m 644 -o "$KIOSK_USER" -g "$KIOSK_USER" /dev/null /tmp/hud.log
-
-# Re-launch as kiosk user attached to kiosk's display
+# Re-launch as kiosk user attached to kiosk's display.
+# Logs go under /home/kiosk/ (kiosk-owned dir) — /tmp's fs.protected_regular
+# blocks even root from O_CREAT on a kiosk-owned file there.
+LAUNCHER_LOG="/home/$KIOSK_USER/launcher.log"
+HUD_LOG="/home/$KIOSK_USER/hud.log"
 sudo -u "$KIOSK_USER" env DISPLAY=:0 XAUTHORITY=/home/"$KIOSK_USER"/.Xauthority \
-    setsid python3 /home/"$KIOSK_USER"/tiosk_launcher.py < /dev/null >> /tmp/launcher.log 2>&1 &
+    bash -c "setsid python3 /home/$KIOSK_USER/tiosk_launcher.py >> $LAUNCHER_LOG 2>&1 < /dev/null &"
 sudo -u "$KIOSK_USER" env DISPLAY=:0 XAUTHORITY=/home/"$KIOSK_USER"/.Xauthority \
-    setsid python3 /home/"$KIOSK_USER"/tiosk_volume_hud.py < /dev/null >> /tmp/hud.log 2>&1 &
+    bash -c "setsid python3 /home/$KIOSK_USER/tiosk_volume_hud.py >> $HUD_LOG 2>&1 < /dev/null &"
 
 sleep 1
 echo "Running processes:"
