@@ -14,6 +14,8 @@ BLANK="/home/kiosk/.blank.xbm"
 cat > "$BLANK" << 'EOF'
 #define blank_width 8
 #define blank_height 8
+#define blank_x_hot 0
+#define blank_y_hot 0
 static unsigned char blank_bits[] = {
    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 EOF
