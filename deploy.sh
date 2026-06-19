@@ -75,11 +75,16 @@ pkill -f tiosk_launcher 2>/dev/null || true
 pkill -f tiosk_volume_hud 2>/dev/null || true
 sleep 1
 
+# Logs may be owned by a previous deployer; reset so kiosk can write them.
+rm -f /tmp/launcher.log /tmp/hud.log
+install -m 644 -o "$KIOSK_USER" -g "$KIOSK_USER" /dev/null /tmp/launcher.log
+install -m 644 -o "$KIOSK_USER" -g "$KIOSK_USER" /dev/null /tmp/hud.log
+
 # Re-launch as kiosk user attached to kiosk's display
 sudo -u "$KIOSK_USER" env DISPLAY=:0 XAUTHORITY=/home/"$KIOSK_USER"/.Xauthority \
-    setsid python3 /home/"$KIOSK_USER"/tiosk_launcher.py < /dev/null > /tmp/launcher.log 2>&1 &
+    setsid python3 /home/"$KIOSK_USER"/tiosk_launcher.py < /dev/null >> /tmp/launcher.log 2>&1 &
 sudo -u "$KIOSK_USER" env DISPLAY=:0 XAUTHORITY=/home/"$KIOSK_USER"/.Xauthority \
-    setsid python3 /home/"$KIOSK_USER"/tiosk_volume_hud.py < /dev/null > /tmp/hud.log 2>&1 &
+    setsid python3 /home/"$KIOSK_USER"/tiosk_volume_hud.py < /dev/null >> /tmp/hud.log 2>&1 &
 
 sleep 1
 echo "Running processes:"
