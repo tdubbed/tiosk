@@ -32,6 +32,7 @@ apt install -y \
     xvkbd matchbox-keyboard \
     unclutter-xfixes \
     xcursorgen \
+    xscreensaver xscreensaver-data-extra xscreensaver-gl xscreensaver-gl-extra \
     vim curl htop libxcb-cursor0
 
 # Mopidy-Iris via pip (not in apt)

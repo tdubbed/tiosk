@@ -67,6 +67,13 @@ echo "--- Redeploy Mopidy config ---"
 install -m 644 -o "$KIOSK_USER" -g "$KIOSK_USER" \
     config/mopidy.conf /home/"$KIOSK_USER"/.config/mopidy/mopidy.conf
 
+echo "--- Redeploy xscreensaver config ---"
+install -m 644 -o "$KIOSK_USER" -g "$KIOSK_USER" \
+    config/xscreensaver /home/"$KIOSK_USER"/.xscreensaver
+# Hot-reload the running xscreensaver daemon (no-op if not running)
+sudo -u "$KIOSK_USER" env DISPLAY=:0 XAUTHORITY=/home/"$KIOSK_USER"/.Xauthority \
+    xscreensaver-command -restart >/dev/null 2>&1 || true
+
 if [ "$RESTART_X" -eq 1 ]; then
     echo "--- Redeploy xorg + lightdm (requires X restart) ---"
     install -m 644 config/xorg-touch-calibration.conf \
