@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=xfce4-screensaver
+Exec=/bin/true
+Hidden=true
+X-GNOME-Autostart-enabled=false
