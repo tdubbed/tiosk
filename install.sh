@@ -33,6 +33,9 @@ apt install -y \
     unclutter-xfixes \
     xcursorgen \
     xscreensaver xscreensaver-data-extra xscreensaver-gl xscreensaver-gl-extra \
+    build-essential libgl1-mesa-dev libglu1-mesa-dev libgles2-mesa-dev \
+    libxml2-dev libjpeg-dev libpng-dev libxt-dev libxmu-dev \
+    libgtk-3-dev intltool autoconf automake pkg-config bc \
     vim curl htop libxcb-cursor0
 
 # Mopidy-Iris via pip (not in apt)
@@ -131,6 +134,24 @@ echo "--- WoL on ethernet ---"
 ETH=$(ip -brief link | awk '$1 ~ /^en/ {print $1; exit}')
 if [ -n "$ETH" ]; then
     ethtool -s "$ETH" wol g || true
+fi
+
+# prococean (Proc Ocean) is a saver added in xscreensaver 6.15 (Mar 2026).
+# Ubuntu 26.04 ships 6.08, so build the two binaries we need from source.
+echo "--- prococean from xscreensaver 6.15 source ---"
+if [ ! -x /usr/libexec/xscreensaver/prococean ] || [ ! -x /usr/libexec/xscreensaver/xshadertoy ]; then
+    XSS_BUILD=/tmp/xscreensaver-6.15
+    if [ ! -d "$XSS_BUILD" ]; then
+        cd /tmp && wget -q https://www.jwz.org/xscreensaver/xscreensaver-6.15.tar.gz
+        tar xzf xscreensaver-6.15.tar.gz
+    fi
+    cd "$XSS_BUILD"
+    ./configure --prefix=/usr --libexecdir=/usr/libexec >/dev/null
+    (cd utils && make) >/dev/null
+    (cd hacks && make screenhack.o xlockmore.o) >/dev/null
+    (cd hacks/glx && make xshadertoy) >/dev/null
+    install -m 755 hacks/glx/xshadertoy /usr/libexec/xscreensaver/xshadertoy
+    install -m 755 hacks/glx/prococean  /usr/libexec/xscreensaver/prococean
 fi
 
 echo "=== Done. Reboot for full effect. ==="
