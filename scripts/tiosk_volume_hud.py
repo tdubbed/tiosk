@@ -29,8 +29,14 @@ def toggle_mute():
     update_label()
 
 def go_home():
-    for proc in ["qiosk", "brave", "falkon", "retroarch"]:
-        subprocess.run(["pkill", "-f", proc])
+    # Don't kill — just send the foreground app behind the launcher so audio
+    # (YouTube Music in Stream) keeps playing. Launcher resumes or replaces
+    # the running app when a mode button is tapped.
+    for cls in ["qiosk", "retroarch"]:
+        subprocess.run(["wmctrl", "-x", "-r", cls, "-b", "add,below"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["wmctrl", "-a", "TIOSK"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     collapse()
 
 def update_label():
