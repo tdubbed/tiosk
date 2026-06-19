@@ -168,10 +168,10 @@ canvas.pack(fill="both", expand=True)
 canvas.create_image(0, 0, anchor="nw", image=photo)
 
 title_y = 130
-canvas.create_text(SCREEN_W // 2 + 2, title_y + 2, text="T-IOSK",
+canvas.create_text(SCREEN_W // 2 + 2, title_y + 2, text="T-OSK",
                    font=("DejaVu Sans", 56, "bold"),
                    fill="#000000")
-canvas.create_text(SCREEN_W // 2, title_y, text="T-IOSK",
+canvas.create_text(SCREEN_W // 2, title_y, text="T-OSK",
                    font=("DejaVu Sans", 56, "bold"),
                    fill="#a0d8ff")
 
