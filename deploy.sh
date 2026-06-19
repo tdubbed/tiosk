@@ -33,8 +33,15 @@ done
 echo "=== tiosk-deploy ==="
 cd "$REPO_DIR"
 
-echo "--- git pull ---"
-git pull --ff-only origin main
+# Re-exec after pulling so a self-modified deploy.sh takes effect this run.
+# Bash holds the script open by inode; `git pull` writes a new inode and the
+# old (in-memory) instructions would otherwise continue executing.
+if [ -z "${TIOSK_DEPLOY_REEXEC:-}" ]; then
+    echo "--- git pull ---"
+    git pull --ff-only origin main
+    export TIOSK_DEPLOY_REEXEC=1
+    exec "$REPO_DIR/deploy.sh" "$@"
+fi
 
 echo "--- Redeploy user scripts ---"
 install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
