@@ -52,6 +52,8 @@ install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
     scripts/hide-cursor.sh /home/"$KIOSK_USER"/hide-cursor.sh
 install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
     scripts/tiosk_dim_watcher.py /home/"$KIOSK_USER"/tiosk_dim_watcher.py
+install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
+    scripts/tiosk_mono_audio.sh /home/"$KIOSK_USER"/tiosk_mono_audio.sh
 install -m 755 scripts/calibrate-touch.sh /usr/local/bin/calibrate-touch.sh
 
 if [ -f assets/wallpaper.jpg ]; then
