@@ -153,6 +153,7 @@ if [ ! -x /usr/libexec/xscreensaver/prococean ] || [ ! -x /usr/libexec/xscreensa
     install -m 755 hacks/glx/xshadertoy /usr/libexec/xscreensaver/xshadertoy
     install -m 755 hacks/glx/prococean  /usr/libexec/xscreensaver/prococean
     install -m 755 hacks/glx/trizm      /usr/libexec/xscreensaver/trizm
+    install -m 755 hacks/glx/hexplasma  /usr/libexec/xscreensaver/hexplasma
 fi
 
 echo "=== Done. Reboot for full effect. ==="
