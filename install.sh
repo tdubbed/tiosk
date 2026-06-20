@@ -130,11 +130,16 @@ install -m 644 "$REPO_DIR/config/lightdm-autologin.conf" \
 echo "--- Suspend/sleep masked ---"
 systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 
-echo "--- WoL on ethernet ---"
+echo "--- WoL on ethernet (persisted via systemd) ---"
+# Apply now AND install a oneshot systemd unit so the setting is re-asserted
+# on every boot. Linux NICs frequently forget wol=g across power events.
 ETH=$(ip -brief link | awk '$1 ~ /^en/ {print $1; exit}')
 if [ -n "$ETH" ]; then
     ethtool -s "$ETH" wol g || true
 fi
+install -m 644 "$REPO_DIR/config/wol-enable.service" /etc/systemd/system/wol-enable.service
+systemctl daemon-reload
+systemctl enable --now wol-enable.service
 
 # prococean (Proc Ocean) is a saver added in xscreensaver 6.15 (Mar 2026).
 # Ubuntu 26.04 ships 6.08, so build the two binaries we need from source.
