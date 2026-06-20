@@ -41,6 +41,7 @@ mode:           one
 selected:       0
 
 programs:                                                                     \
+                trizm -root                                                 \n\
                 xanalogtv -root                                             \n\
                 xmatrix -root                                               \n\
                 prococean -root                                             \n\
