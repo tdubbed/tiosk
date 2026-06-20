@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=TIOSK Dim Watcher
+Exec=python3 /home/kiosk/tiosk_dim_watcher.py
+Terminal=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=8

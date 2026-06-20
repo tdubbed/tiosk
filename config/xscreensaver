@@ -2,7 +2,7 @@
 ! Idle 1 hour → hyperspace tunnel. After 2 hours total, monitor off (DPMS).
 ! Touch wakes everything. No lock — this is a kiosk.
 
-timeout:        1:00:00
+timeout:        0:15:00
 cycle:          0:00:00
 lock:           False
 lockTimeout:    0:00:00
@@ -29,8 +29,8 @@ xidleExtension: True
 procInterrupts: True
 dpmsEnabled:    True
 dpmsStandby:    1:30:00
-dpmsSuspend:    1:45:00
-dpmsOff:        2:00:00
+dpmsSuspend:    1:30:00
+dpmsOff:        1:30:00
 dpmsQuickoff:   False
 grabDesktopImages:  False
 grabVideoFrames:    False
