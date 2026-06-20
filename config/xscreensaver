@@ -41,6 +41,7 @@ mode:           one
 selected:       0
 
 programs:                                                                     \
+                binaryring -root                                            \n\
                 hexplasma -root                                             \n\
                 trizm -root                                                 \n\
                 xanalogtv -root                                             \n\
