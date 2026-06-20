@@ -1,11 +1,12 @@
 [Unit]
-Description=Enable Wake-on-LAN on wired NIC
-Requires=network.target
-After=network.target
+Description=Enable Wake-on-LAN on wired NIC (belt-and-suspenders to NM)
+After=NetworkManager.service network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/sbin/ethtool -s enp0s31f6 wol g
+# Wait briefly for NM to finish, then force WoL on.
+ExecStart=/bin/sh -c 'sleep 5 && /usr/sbin/ethtool -s enp0s31f6 wol g'
 RemainAfterExit=yes
 
 [Install]

@@ -130,12 +130,18 @@ install -m 644 "$REPO_DIR/config/lightdm-autologin.conf" \
 echo "--- Suspend/sleep masked ---"
 systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 
-echo "--- WoL on ethernet (persisted via systemd) ---"
-# Apply now AND install a oneshot systemd unit so the setting is re-asserted
-# on every boot. Linux NICs frequently forget wol=g across power events.
+echo "--- WoL on ethernet (NetworkManager + systemd belt-and-suspenders) ---"
+# Linux NICs frequently forget wol=g across power events. Two-layer fix:
+# (1) NetworkManager persists wake-on-lan=magic on the connection (survives reboot).
+# (2) systemd oneshot re-asserts after NM has settled in case NM drops it.
 ETH=$(ip -brief link | awk '$1 ~ /^en/ {print $1; exit}')
 if [ -n "$ETH" ]; then
     ethtool -s "$ETH" wol g || true
+    CONN=$(nmcli -t -f NAME,DEVICE connection show | grep ":$ETH$" | head -1 | cut -d: -f1)
+    if [ -n "$CONN" ]; then
+        nmcli connection modify "$CONN" 802-3-ethernet.wake-on-lan magic
+        nmcli connection up "$CONN" >/dev/null || true
+    fi
 fi
 install -m 644 "$REPO_DIR/config/wol-enable.service" /etc/systemd/system/wol-enable.service
 systemctl daemon-reload
