@@ -188,7 +188,7 @@ def make_pill(cx, cy, w, h, label, fill, accent, command):
     items.append(canvas.create_rectangle(x1 + r, y1, x2 - r, y2, fill=fill, outline=""))
     items.append(canvas.create_line(x1 + r, y1, x2 - r, y1, fill=accent, width=3))
     items.append(canvas.create_line(x1 + r, y2, x2 - r, y2, fill=accent, width=3))
-    txt = canvas.create_text(cx, cy, text=label, font=("DejaVu Sans", 32, "bold"),
+    txt = canvas.create_text(cx, cy, text=label, font=("DejaVu Sans", 42, "bold"),
                              fill="#ffffff")
     items.append(txt)
     for item in items:
@@ -196,15 +196,12 @@ def make_pill(cx, cy, w, h, label, fill, accent, command):
 
 
 btn_y = SCREEN_H // 2 + 80
-btn_w, btn_h = 320, 110
-spacing = 40
-left_cx = SCREEN_W // 2 - (btn_w + spacing)
-mid_cx = SCREEN_W // 2
-right_cx = SCREEN_W // 2 + (btn_w + spacing)
+btn_w, btn_h = 400, 140
+spacing = 80
+left_cx = SCREEN_W // 2 - (btn_w + spacing) // 2
+right_cx = SCREEN_W // 2 + (btn_w + spacing) // 2
 
-make_pill(left_cx, btn_y, btn_w, btn_h, "JUKEBOX",
-          "#1e3a5f", "#5fa8ff", launch_jukebox)
-make_pill(mid_cx, btn_y, btn_w, btn_h, "STREAM",
+make_pill(left_cx, btn_y, btn_w, btn_h, "STREAM",
           "#1e5f3a", "#5fff9f", launch_stream)
 make_pill(right_cx, btn_y, btn_w, btn_h, "ARCADE",
           "#5f1e3a", "#ff5fa8", launch_arcade)
