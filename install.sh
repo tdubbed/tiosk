@@ -122,6 +122,10 @@ echo "--- Touch calibration ---"
 install -m 644 "$REPO_DIR/config/xorg-touch-calibration.conf" \
     /etc/X11/xorg.conf.d/99-touch-calibration.conf
 
+echo "--- TearFree (i915 anti-tearing) ---"
+install -m 644 "$REPO_DIR/config/xorg-tearfree.conf" \
+    /etc/X11/xorg.conf.d/20-tearfree.conf
+
 echo "--- LightDM auto-login ---"
 mkdir -p /etc/lightdm/lightdm.conf.d
 install -m 644 "$REPO_DIR/config/lightdm-autologin.conf" \

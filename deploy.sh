@@ -82,6 +82,8 @@ if [ "$RESTART_X" -eq 1 ]; then
     echo "--- Redeploy xorg + lightdm (requires X restart) ---"
     install -m 644 config/xorg-touch-calibration.conf \
         /etc/X11/xorg.conf.d/99-touch-calibration.conf
+    install -m 644 config/xorg-tearfree.conf \
+        /etc/X11/xorg.conf.d/20-tearfree.conf
     install -m 644 config/lightdm-autologin.conf \
         /etc/lightdm/lightdm.conf.d/50-autologin.conf
     echo "Rebooting in 5 seconds..."
