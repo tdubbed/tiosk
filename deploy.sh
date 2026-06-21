@@ -54,7 +54,7 @@ install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
     scripts/tiosk_dim_watcher.py /home/"$KIOSK_USER"/tiosk_dim_watcher.py
 install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
     scripts/tiosk_eq.sh /home/"$KIOSK_USER"/tiosk_eq.sh
-install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
+install -m 755 scripts/calibrate-touch.sh /usr/local/bin/calibrate-touch.sh
 
 if [ -f assets/wallpaper.jpg ]; then
     install -m 644 -o "$KIOSK_USER" -g "$KIOSK_USER" \
