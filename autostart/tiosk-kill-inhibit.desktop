@@ -1,7 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=TIOSK Kill Inhibit Listener
-Exec=/home/kiosk/tiosk_kill_inhibit_listener.sh
-Terminal=false
-X-GNOME-Autostart-enabled=true
-X-GNOME-Autostart-Delay=10

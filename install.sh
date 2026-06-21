@@ -134,6 +134,23 @@ install -m 644 "$REPO_DIR/config/lightdm-autologin.conf" \
 echo "--- Suspend/sleep masked ---"
 systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 
+echo "--- Disable xscreensaver-systemd via dpkg-divert (official Debian way) ---"
+# xscreensaver 6.x spawns xscreensaver-systemd which listens for browser
+# wake-lock / screensaver-inhibit D-Bus calls. With it running, the saver
+# never fires during YouTube Music etc. JWZ confirms there's no upstream
+# config toggle for this — the supported workaround is "don't watch movies"
+# which doesn't work for an always-on kiosk.
+#
+# dpkg-divert renames the binary so xscreensaver can't spawn it, AND the
+# rename survives apt upgrades (apt won't put the file back).
+if [ ! -e /usr/libexec/xscreensaver/xscreensaver-systemd.disabled ]; then
+    dpkg-divert --local --rename \
+        --divert /usr/libexec/xscreensaver/xscreensaver-systemd.disabled \
+        --add /usr/libexec/xscreensaver/xscreensaver-systemd
+fi
+# Kill any running instance from before the divert
+pkill -f /usr/libexec/xscreensaver/xscreensaver-systemd 2>/dev/null || true
+
 echo "--- WoL on ethernet (NetworkManager + systemd belt-and-suspenders) ---"
 # Linux NICs frequently forget wol=g across power events. Two-layer fix:
 # (1) NetworkManager persists wake-on-lan=magic on the connection (survives reboot).

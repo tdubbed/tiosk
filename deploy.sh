@@ -55,8 +55,6 @@ install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
 install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
     scripts/tiosk_eq.sh /home/"$KIOSK_USER"/tiosk_eq.sh
 install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
-    scripts/tiosk_kill_inhibit_listener.sh /home/"$KIOSK_USER"/tiosk_kill_inhibit_listener.sh
-install -m 755 scripts/calibrate-touch.sh /usr/local/bin/calibrate-touch.sh
 
 if [ -f assets/wallpaper.jpg ]; then
     install -m 644 -o "$KIOSK_USER" -g "$KIOSK_USER" \
