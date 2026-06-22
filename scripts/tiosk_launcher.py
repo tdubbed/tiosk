@@ -136,23 +136,18 @@ def check_child():
         current_mode = None
         write_state("")
         root.lift()
-        root.geometry(f"{SCREEN_W}x{SCREEN_H}+0+0")
+        root.attributes("-fullscreen", True)
     root.after(1000, check_child)
 
 
 root = tk.Tk()
 root.title("TIOSK")
+root.attributes("-fullscreen", True)
 root.configure(bg="#000000", cursor="none")
 root.bind("<Escape>", quit_launcher)
 
-# Constrain to the Elo (DP2) — avoids the launcher spanning across the
-# phantom HDMI display the Pioneer advertises as a 1080p TV. Hardcoded
-# because parsing xrandr from inside Tk init is fragile and the Elo's
-# resolution is fixed for this kiosk.
-SCREEN_W = 1280
-SCREEN_H = 1024
-root.overrideredirect(True)
-root.geometry(f"{SCREEN_W}x{SCREEN_H}+0+0")
+SCREEN_W = root.winfo_screenwidth()
+SCREEN_H = root.winfo_screenheight()
 
 # Load + scale wallpaper. Slight darken for contrast.
 img = Image.open(WALLPAPER)

@@ -25,19 +25,16 @@ fi
 # Make HDMI the default sink
 pactl set-default-sink "$SINK" 2>/dev/null || true
 
-# EXTEND the desktop instead of mirror — Pioneer doesn't offer the Elo's
-# 1280x1024 mode, so mirror would force a weird framebuffer size. Extended
-# layout keeps DP2 as primary (full Elo resolution) with HDMI1 to the
-# right as a dummy secondary that nobody sees. The launcher constrains
-# itself to DP2 via explicit geometry (see tiosk_launcher.py).
+# Mirror Pioneer's HDMI to DP2 at HDMI's smallest matching mode (1280x720).
+# This keeps the framebuffer at 1280x1024 (the Elo's native — max of both
+# dimensions), so the launcher renders correctly, touch calibration stays
+# valid, and nothing about the input pipeline changes. Pioneer shows the
+# upper-left 1280x720 of the Elo desktop (nobody sees it). Crucially,
+# HDMI1 stays *electrically connected* with a real mode → HDMI audio link
+# stays alive.
 if command -v xrandr >/dev/null 2>&1; then
     xrandr --output DP2 --primary --mode 1280x1024 --pos 0x0 2>/dev/null || true
     if xrandr | grep -q "^HDMI1 connected"; then
-        xrandr --output HDMI1 --mode 1280x720 --right-of DP2 2>/dev/null || true
+        xrandr --output HDMI1 --mode 1280x720 --same-as DP2 2>/dev/null || true
     fi
 fi
-
-# Paint the secondary (HDMI/Pioneer) area black so nothing leaks visually.
-# xsetroot only handles the root window, which most desktops cover with a
-# wallpaper — but xfdesktop respects xsetroot if no wallpaper is set.
-xsetroot -solid black 2>/dev/null || true
