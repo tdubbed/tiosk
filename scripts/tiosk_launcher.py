@@ -10,7 +10,7 @@ State model:
   so YouTube Music audio (and ARCADE state) survives a trip to the launcher.
 """
 import tkinter as tk
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageEnhance
 import subprocess, os
 
 WALLPAPER = "/home/kiosk/wallpaper.jpg"
@@ -156,7 +156,9 @@ SCREEN_H = root.winfo_screenheight()
 root.overrideredirect(True)
 root.geometry(f"{SCREEN_W}x{SCREEN_H}+0+0")
 
-# Load + scale wallpaper. Slight darken for contrast.
+# Load + scale wallpaper. Keep contrast high — old code dimmed it to 65% to
+# make pills readable, but that killed the "crisp" feel. With darker pills
+# (more solid fill + outline), we can leave the wallpaper at full punch.
 img = Image.open(WALLPAPER)
 img_w, img_h = img.size
 scale = max(SCREEN_W / img_w, SCREEN_H / img_h)
@@ -165,8 +167,11 @@ img = img.resize(new_size, Image.LANCZOS)
 left = (img.size[0] - SCREEN_W) // 2
 top = (img.size[1] - SCREEN_H) // 2
 img = img.crop((left, top, left + SCREEN_W, top + SCREEN_H))
+# Minimal darken (just enough so title text reads) + slight contrast boost
 dark = Image.new("RGB", img.size, "black")
-img = Image.blend(img, dark, 0.35)
+img = Image.blend(img, dark, 0.15)
+img = ImageEnhance.Contrast(img).enhance(1.10)
+img = ImageEnhance.Color(img).enhance(1.15)
 photo = ImageTk.PhotoImage(img)
 
 canvas = tk.Canvas(root, width=SCREEN_W, height=SCREEN_H,
