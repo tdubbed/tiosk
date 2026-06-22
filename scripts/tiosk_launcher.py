@@ -119,6 +119,12 @@ def force_fullscreen(wm_class_substr):
         subprocess.run(
             ["wmctrl", "-i", "-r", wid, "-b", "add,above"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # 6. Force REAL input focus — SPLASH-type windows get
+        # _NET_WM_STATE_FOCUSED but X11 input focus stays on Desktop, so
+        # text fields don't receive input → virtual keyboard never triggers.
+        subprocess.run(
+            ["xdotool", "windowactivate", "--sync", wid],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return
 
 
