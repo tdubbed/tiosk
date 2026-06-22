@@ -80,6 +80,15 @@ def apply_eq(preset):
     eq_status.config(text=f"EQ: {preset.upper()}")
 
 
+def fire_saver():
+    """Manually trigger the screensaver right now."""
+    # Don't bump activity — we WANT the HUD to collapse after this fires
+    subprocess.run(
+        ["xscreensaver-command", "-activate"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    collapse()
+
+
 def open_eq():
     """Modal-ish toplevel with three preset buttons."""
     if hasattr(open_eq, "_win") and open_eq._win.winfo_exists():
@@ -136,7 +145,7 @@ SCREEN_H = root.winfo_screenheight()
 W_COLLAPSED = 60
 H_COLLAPSED = 60
 W_EXPANDED = 130
-H_EXPANDED = 460
+H_EXPANDED = 510
 X = 5
 Y_COLLAPSED = 735
 Y_EXPANDED = 735 - H_EXPANDED + H_COLLAPSED
@@ -190,6 +199,9 @@ tk.Button(expanded_frame, text="-", font=btn_font, bg="#5f1e3a", fg="#ffffff",
 tk.Button(expanded_frame, text="EQ", font=("DejaVu Sans", 18, "bold"),
           bg="#3a5f1e", fg="#ffffff", activebackground="#5e9f2e",
           bd=0, height=1, command=open_eq).pack(pady=2, padx=6, fill="x")
+tk.Button(expanded_frame, text="☾", font=("DejaVu Sans", 24, "bold"),
+          bg="#1e2a5f", fg="#a0d8ff", activebackground="#2e3a8f",
+          bd=0, height=1, command=fire_saver).pack(pady=2, padx=6, fill="x")
 tk.Button(expanded_frame, text="🏠", font=("DejaVu Sans", 22, "bold"),
           bg="#6e5e2e", fg="#ffffff", activebackground="#8e7e4e",
           bd=0, height=1, command=go_home).pack(pady=2, padx=6, fill="x")
