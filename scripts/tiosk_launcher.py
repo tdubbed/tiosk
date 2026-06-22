@@ -69,17 +69,54 @@ def stop_mopidy():
 
 
 def force_fullscreen(wm_class_substr):
-    """Re-assert fullscreen WM state for the app's window once it appears.
-    With xrandr --setmonitor merging outputs into one logical monitor,
-    fullscreen will correctly fill 1280x1024."""
+    """Force the app's window borderless + 1280x1024 at 0,0.
+
+    Why this sequence: Qt's -f fullscreen with two outputs (DP2 1280x1024
+    + HDMI1 1280x720 mirrored for audio) makes the window fullscreen onto
+    the OVERLAPPING area = 1280x720, leaving a strip visible at the
+    bottom. xrandr --setmonitor merges them logically but XFWM still
+    fullscreens to the smaller real output.
+
+    Fix: remove fullscreen state, set Motif "no decorations" hint, then
+    explicit resize to 1280x1024. Best-effort, runs in a thread, retries
+    while the window may still be appearing.
+    """
     import time
-    for _ in range(5):
-        result = subprocess.run(
-            ["wmctrl", "-x", "-r", wm_class_substr, "-b", "add,fullscreen"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if result.returncode == 0:
-            return
+    for attempt in range(8):
         time.sleep(0.5)
+        # Find window by class
+        try:
+            out = subprocess.check_output(
+                ["wmctrl", "-lx"], text=True, stderr=subprocess.DEVNULL)
+        except Exception:
+            continue
+        wid = None
+        for line in out.splitlines():
+            parts = line.split(None, 4)
+            if len(parts) >= 3 and wm_class_substr in parts[2].lower():
+                wid = parts[0]
+                break
+        if not wid:
+            continue
+        # Remove fullscreen / maximized states first so resize takes effect
+        subprocess.run(
+            ["wmctrl", "-i", "-r", wid, "-b",
+             "remove,fullscreen,maximized_vert,maximized_horz"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Motif "no decorations" hint
+        subprocess.run(
+            ["xprop", "-id", wid, "-f", "_MOTIF_WM_HINTS", "32c",
+             "-set", "_MOTIF_WM_HINTS", "0x2, 0x0, 0x0, 0x0, 0x0"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Force explicit geometry — full Elo, top-left corner
+        subprocess.run(
+            ["wmctrl", "-i", "-r", wid, "-e", "0,0,0,1280,1024"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Keep on top so it covers the launcher beneath
+        subprocess.run(
+            ["wmctrl", "-i", "-r", wid, "-b", "add,above"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return
 
 
 def launch_jukebox():
