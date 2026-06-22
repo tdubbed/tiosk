@@ -142,12 +142,19 @@ def check_child():
 
 root = tk.Tk()
 root.title("TIOSK")
-root.attributes("-fullscreen", True)
 root.configure(bg="#000000", cursor="none")
 root.bind("<Escape>", quit_launcher)
 
+# Use explicit framebuffer-spanning geometry instead of -fullscreen.
+# Reason: -fullscreen is MONITOR-relative on X11. With HDMI mirror enabled
+# (HDMI1 at 1280x720 mirroring DP2 at 1280x1024), XFWM treats them as two
+# monitors and fullscreens onto the SMALLER one — leaving a 304px strip
+# of XFCE wallpaper visible at the bottom of the Elo. overrideredirect +
+# explicit geometry covers the full framebuffer regardless.
 SCREEN_W = root.winfo_screenwidth()
 SCREEN_H = root.winfo_screenheight()
+root.overrideredirect(True)
+root.geometry(f"{SCREEN_W}x{SCREEN_H}+0+0")
 
 # Load + scale wallpaper. Slight darken for contrast.
 img = Image.open(WALLPAPER)
