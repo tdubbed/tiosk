@@ -11,7 +11,7 @@ State model:
 """
 import tkinter as tk
 from PIL import Image, ImageTk, ImageEnhance
-import subprocess, os
+import subprocess, os, threading
 
 WALLPAPER = "/home/kiosk/wallpaper.jpg"
 STATE_FILE = "/tmp/tiosk_mode"
@@ -68,6 +68,45 @@ def stop_mopidy():
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def force_qiosk_size():
+    """Constrain Qiosk to the Elo's 1280x1024 area.
+
+    Qt's fullscreen flag is monitor-relative on X11 — with HDMI mirror
+    enabled (1280x720 same-as DP2 1280x1024), Qt's fullscreen mode fills
+    the smaller monitor and leaves a strip of XFCE wallpaper visible.
+    Force-resize via wmctrl after the window appears.
+    """
+    # Best-effort: unmaximize + remove fullscreen state, then set explicit
+    # geometry. Run a few times in case the window takes time to appear.
+    for attempt in range(5):
+        result = subprocess.run(
+            ["wmctrl", "-x", "-r", "qiosk", "-b",
+             "remove,fullscreen,maximized_vert,maximized_horz"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["wmctrl", "-x", "-r", "qiosk", "-e", "0,0,0,1280,1024"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if result.returncode == 0:
+            break
+        import time
+        time.sleep(0.5)
+
+
+def force_retroarch_size():
+    for _ in range(5):
+        subprocess.run(
+            ["wmctrl", "-x", "-r", "retroarch", "-b",
+             "remove,fullscreen,maximized_vert,maximized_horz"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        result = subprocess.run(
+            ["wmctrl", "-x", "-r", "retroarch", "-e", "0,0,0,1280,1024"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if result.returncode == 0:
+            break
+        import time
+        time.sleep(0.5)
+
+
 def launch_jukebox():
     global current_proc, current_mode
     if current_mode == "jukebox" and proc_alive():
@@ -85,6 +124,7 @@ def launch_jukebox():
          "http://localhost:6680/iris/"], env=env)
     current_mode = "jukebox"
     write_state("jukebox")
+    threading.Thread(target=force_qiosk_size, daemon=True).start()
 
 
 def launch_stream():
@@ -105,6 +145,7 @@ def launch_stream():
          "https://music.youtube.com/"], env=env)
     current_mode = "stream"
     write_state("stream")
+    threading.Thread(target=force_qiosk_size, daemon=True).start()
 
 
 def launch_arcade():
@@ -119,6 +160,7 @@ def launch_arcade():
         current_proc = subprocess.Popen(["retroarch", "--fullscreen"])
         current_mode = "arcade"
         write_state("arcade")
+        threading.Thread(target=force_retroarch_size, daemon=True).start()
     except FileNotFoundError:
         pass
 
