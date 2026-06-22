@@ -136,6 +136,11 @@ def launch_jukebox():
     kill_current()
     env = os.environ.copy()
     env["QT_IM_MODULE"] = "qtvirtualkeyboard"
+    # Force the IM context to load eagerly. Without this, QtWebEngine
+    # sometimes fails to register IM focus events from Chromium-rendered
+    # text fields, so tapping a text field never triggers the keyboard.
+    env["QT_VIRTUALKEYBOARD_DESKTOP_DISABLE"] = "0"
+    env["QT_VIRTUALKEYBOARD_HIDE_ON_NO_FOCUS"] = "0"
     env["XCURSOR_THEME"] = "blank"
     env["XCURSOR_PATH"] = "/home/kiosk/.icons:/usr/share/icons"
     env["XCURSOR_SIZE"] = "1"
@@ -157,6 +162,11 @@ def launch_stream():
     stop_mopidy()
     env = os.environ.copy()
     env["QT_IM_MODULE"] = "qtvirtualkeyboard"
+    # Force the IM context to load eagerly. Without this, QtWebEngine
+    # sometimes fails to register IM focus events from Chromium-rendered
+    # text fields, so tapping a text field never triggers the keyboard.
+    env["QT_VIRTUALKEYBOARD_DESKTOP_DISABLE"] = "0"
+    env["QT_VIRTUALKEYBOARD_HIDE_ON_NO_FOCUS"] = "0"
     env["XCURSOR_THEME"] = "blank"
     env["XCURSOR_PATH"] = "/home/kiosk/.icons:/usr/share/icons"
     env["XCURSOR_SIZE"] = "1"

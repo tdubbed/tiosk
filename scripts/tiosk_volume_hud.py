@@ -11,11 +11,16 @@ Expanded panel layout (top → bottom):
    🏠      (home — sends current app behind launcher)
 """
 import tkinter as tk
-import subprocess, os, re, pathlib
+import subprocess, os, re, pathlib, time
 
 os.environ["XDG_RUNTIME_DIR"] = "/run/user/1001"
 
 EQ_SCRIPT = "/home/kiosk/tiosk_eq.sh"
+AUTO_COLLAPSE_SEC = 20  # seconds of inactivity before HUD auto-collapses
+
+# Last time the user interacted with the expanded HUD. expand() and every
+# button callback bump this so the auto-collapse timer resets on touch.
+last_activity = 0
 
 
 def get_volume():
@@ -39,18 +44,26 @@ def get_mute():
         return False
 
 
+def bump_activity():
+    global last_activity
+    last_activity = time.time()
+
+
 def set_vol(delta):
+    bump_activity()
     subprocess.run(["pactl", "set-sink-volume", "@DEFAULT_SINK@",
                     f"{'+' if delta >= 0 else ''}{delta}%"])
     update_pct()
 
 
 def toggle_mute():
+    bump_activity()
     subprocess.run(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"])
     update_pct()
 
 
 def go_home():
+    bump_activity()
     for cls in ["qiosk", "retroarch"]:
         subprocess.run(["wmctrl", "-x", "-r", cls, "-b", "add,below"],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -61,6 +74,7 @@ def go_home():
 
 def apply_eq(preset):
     """Apply named EQ preset by invoking the helper script."""
+    bump_activity()
     subprocess.run([EQ_SCRIPT, preset],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     eq_status.config(text=f"EQ: {preset.upper()}")
@@ -132,6 +146,7 @@ expanded_frame = tk.Frame(root, bg="#000000")
 
 
 def expand():
+    bump_activity()
     root.geometry(f"{W_EXPANDED}x{H_EXPANDED}+{X}+{Y_EXPANDED}")
     collapsed_frame.pack_forget()
     expanded_frame.pack(fill="both", expand=True)
@@ -192,7 +207,10 @@ collapse()
 def refresh():
     if expanded_frame.winfo_ismapped():
         update_pct()
-    root.after(2000, refresh)
+        # Auto-collapse after inactivity
+        if time.time() - last_activity > AUTO_COLLAPSE_SEC:
+            collapse()
+    root.after(1000, refresh)
 
 
 refresh()
