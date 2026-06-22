@@ -71,20 +71,15 @@ def stop_mopidy():
 def force_fullscreen(wm_class_substr):
     """Force the app's window borderless + 1280x1024 at 0,0.
 
-    Why this sequence: Qt's -f fullscreen with two outputs (DP2 1280x1024
-    + HDMI1 1280x720 mirrored for audio) makes the window fullscreen onto
-    the OVERLAPPING area = 1280x720, leaving a strip visible at the
-    bottom. xrandr --setmonitor merges them logically but XFWM still
-    fullscreens to the smaller real output.
-
-    Fix: remove fullscreen state, set Motif "no decorations" hint, then
-    explicit resize to 1280x1024. Best-effort, runs in a thread, retries
-    while the window may still be appearing.
+    Verified live: setting _NET_WM_WINDOW_TYPE_SPLASH + unmap/remap +
+    xdotool sync move/size gives zero frame extents and exact 1280x1024
+    coverage. Other combinations (Motif borderless, fullscreen state,
+    --setmonitor alone) failed because XFWM was still allocating 5px
+    side + 29px title borders + offsetting the placement.
     """
     import time
     for attempt in range(8):
         time.sleep(0.5)
-        # Find window by class
         try:
             out = subprocess.check_output(
                 ["wmctrl", "-lx"], text=True, stderr=subprocess.DEVNULL)
@@ -98,21 +93,29 @@ def force_fullscreen(wm_class_substr):
                 break
         if not wid:
             continue
-        # Remove fullscreen / maximized states first so resize takes effect
+        # 1. Remove fullscreen / maximized states
         subprocess.run(
             ["wmctrl", "-i", "-r", wid, "-b",
              "remove,fullscreen,maximized_vert,maximized_horz"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # Motif "no decorations" hint
+        # 2. Set WINDOW_TYPE to SPLASH (XFWM renders no decorations)
         subprocess.run(
-            ["xprop", "-id", wid, "-f", "_MOTIF_WM_HINTS", "32c",
-             "-set", "_MOTIF_WM_HINTS", "0x2, 0x0, 0x0, 0x0, 0x0"],
+            ["xprop", "-id", wid, "-f", "_NET_WM_WINDOW_TYPE", "32a",
+             "-set", "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_SPLASH"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # Force explicit geometry — full Elo, top-left corner
-        subprocess.run(
-            ["wmctrl", "-i", "-r", wid, "-e", "0,0,0,1280,1024"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # Keep on top so it covers the launcher beneath
+        # 3. Unmap + remap so XFWM re-evaluates with new type
+        subprocess.run(["xdotool", "windowunmap", "--sync", wid],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(0.3)
+        subprocess.run(["xdotool", "windowmap", "--sync", wid],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(0.3)
+        # 4. Exact position and size with --sync (waits for X to apply)
+        subprocess.run(["xdotool", "windowmove", "--sync", wid, "0", "0"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["xdotool", "windowsize", "--sync", wid, "1280", "1024"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # 5. Keep on top so it covers the launcher beneath
         subprocess.run(
             ["wmctrl", "-i", "-r", wid, "-b", "add,above"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
