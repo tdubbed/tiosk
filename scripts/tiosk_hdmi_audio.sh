@@ -35,9 +35,11 @@ if command -v xrandr >/dev/null 2>&1; then
     fi
 
     # Tell the WM there is ONE logical monitor spanning the full Elo, not two.
-    # Without this, XFWM treats DP2 and HDMI1 as separate monitors and
-    # fullscreens apps onto the smaller one (HDMI's 1280x720).
-    xrandr --setmonitor TIOSK 1280/340x1024/270+0+0 DP2 2>/dev/null || true
+    # Must claim BOTH outputs under one --setmonitor — otherwise HDMI1
+    # remains as an auto-generated monitor (+HDMI1) that WMs still see.
+    # Comma-separated, not space-separated.
+    xrandr --delmonitor TIOSK 2>/dev/null || true
+    xrandr --setmonitor TIOSK 1280/340x1024/270+0+0 DP2,HDMI1 2>/dev/null || true
 fi
 
 # Kill XFCE panel — a kiosk should never show the taskbar.
