@@ -68,42 +68,17 @@ def stop_mopidy():
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def force_qiosk_size():
-    """Constrain Qiosk to the Elo's 1280x1024 area.
-
-    Qt's fullscreen flag is monitor-relative on X11 — with HDMI mirror
-    enabled (1280x720 same-as DP2 1280x1024), Qt's fullscreen mode fills
-    the smaller monitor and leaves a strip of XFCE wallpaper visible.
-    Force-resize via wmctrl after the window appears.
-    """
-    # Best-effort: unmaximize + remove fullscreen state, then set explicit
-    # geometry. Run a few times in case the window takes time to appear.
-    for attempt in range(5):
-        result = subprocess.run(
-            ["wmctrl", "-x", "-r", "qiosk", "-b",
-             "remove,fullscreen,maximized_vert,maximized_horz"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(
-            ["wmctrl", "-x", "-r", "qiosk", "-e", "0,0,0,1280,1024"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if result.returncode == 0:
-            break
-        import time
-        time.sleep(0.5)
-
-
-def force_retroarch_size():
+def force_fullscreen(wm_class_substr):
+    """Re-assert fullscreen WM state for the app's window once it appears.
+    With xrandr --setmonitor merging outputs into one logical monitor,
+    fullscreen will correctly fill 1280x1024."""
+    import time
     for _ in range(5):
-        subprocess.run(
-            ["wmctrl", "-x", "-r", "retroarch", "-b",
-             "remove,fullscreen,maximized_vert,maximized_horz"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         result = subprocess.run(
-            ["wmctrl", "-x", "-r", "retroarch", "-e", "0,0,0,1280,1024"],
+            ["wmctrl", "-x", "-r", wm_class_substr, "-b", "add,fullscreen"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if result.returncode == 0:
-            break
-        import time
+            return
         time.sleep(0.5)
 
 
@@ -124,7 +99,7 @@ def launch_jukebox():
          "http://localhost:6680/iris/"], env=env)
     current_mode = "jukebox"
     write_state("jukebox")
-    threading.Thread(target=force_qiosk_size, daemon=True).start()
+    threading.Thread(target=force_fullscreen, args=("qiosk",), daemon=True).start()
 
 
 def launch_stream():
@@ -145,7 +120,7 @@ def launch_stream():
          "https://music.youtube.com/"], env=env)
     current_mode = "stream"
     write_state("stream")
-    threading.Thread(target=force_qiosk_size, daemon=True).start()
+    threading.Thread(target=force_fullscreen, args=("qiosk",), daemon=True).start()
 
 
 def launch_arcade():
@@ -160,7 +135,7 @@ def launch_arcade():
         current_proc = subprocess.Popen(["retroarch", "--fullscreen"])
         current_mode = "arcade"
         write_state("arcade")
-        threading.Thread(target=force_retroarch_size, daemon=True).start()
+        threading.Thread(target=force_fullscreen, args=("retroarch",), daemon=True).start()
     except FileNotFoundError:
         pass
 
@@ -178,7 +153,7 @@ def check_child():
         current_mode = None
         write_state("")
         root.lift()
-        root.attributes("-fullscreen", True)
+        root.geometry(f"{SCREEN_W}x{SCREEN_H}+0+0")
     root.after(1000, check_child)
 
 
