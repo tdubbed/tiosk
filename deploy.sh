@@ -22,23 +22,27 @@ fi
 REPO_DIR="/opt/tiosk"
 KIOSK_USER="kiosk"
 RESTART_X=0
+BRANCH="main"
 
 for arg in "$@"; do
     case "$arg" in
         --restart-x) RESTART_X=1 ;;
+        --dev)       BRANCH="dev" ;;
         *) echo "Unknown arg: $arg"; exit 1 ;;
     esac
 done
 
-echo "=== tiosk-deploy ==="
+echo "=== tiosk-deploy (branch: $BRANCH) ==="
 cd "$REPO_DIR"
 
 # Re-exec after pulling so a self-modified deploy.sh takes effect this run.
 # Bash holds the script open by inode; `git pull` writes a new inode and the
 # old (in-memory) instructions would otherwise continue executing.
 if [ -z "${TIOSK_DEPLOY_REEXEC:-}" ]; then
-    echo "--- git pull ---"
-    git pull --ff-only origin main
+    echo "--- git fetch + checkout $BRANCH ---"
+    git fetch origin
+    git checkout -B "$BRANCH" "origin/$BRANCH"
+    git reset --hard "origin/$BRANCH"
     export TIOSK_DEPLOY_REEXEC=1
     exec "$REPO_DIR/deploy.sh" "$@"
 fi
