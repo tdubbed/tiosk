@@ -244,17 +244,14 @@ def show_services_picker():
 
 root = tk.Tk()
 root.title("TIOSK")
-# i3 matches windows by WM_CLASS. Set both name and class to "Tiosk"
-# so the i3 config rule can route us to workspace 1 fullscreen.
-root.tk.call("wm", "class", root._w, "Tiosk")
 root.configure(bg="#000000", cursor="none")
 root.bind("<Escape>", quit_launcher)
 
 SCREEN_W = root.winfo_screenwidth()
 SCREEN_H = root.winfo_screenheight()
 # NO overrideredirect — let i3 manage the window. The i3 config has
-# a `for_window [class="^Tiosk$"]` rule that puts us on workspace 1
-# and fullscreens, so we get the right geometry without overrideredirect's
+# a `for_window [title="^TIOSK$"]` rule that puts us on workspace 1
+# fullscreen, so we get the right geometry without overrideredirect's
 # "I'm on top of everything forever" downside.
 root.geometry(f"{SCREEN_W}x{SCREEN_H}+0+0")
 

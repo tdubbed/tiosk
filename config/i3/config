@@ -33,8 +33,9 @@ assign [class="(?i)chromium-stream"] workspace number 2
 assign [class="(?i)retroarch"]       workspace number 3
 assign [class="(?i)chromium-service"] workspace number 4
 
-# Launcher (tkinter — WM_CLASS "Tiosk") pinned to workspace 1, fullscreen.
-for_window [class="^Tiosk$"] move container to workspace number 1, fullscreen enable
+# Launcher (tkinter — title "TIOSK") pinned to workspace 1, fullscreen.
+# tkinter doesn't expose setting WM_CLASS cleanly, so we match by title.
+for_window [title="^TIOSK$"] move container to workspace number 1, fullscreen enable
 
 # Start on workspace 1 (launcher).
 exec --no-startup-id i3-msg workspace number 1
