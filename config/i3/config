@@ -54,3 +54,18 @@ exec --no-startup-id dex --autostart --environment i3
 # something. `--no-startup-id` keeps i3 from showing the loading hourglass.
 exec_always --no-startup-id /home/kiosk/hide-cursor.sh
 exec_always --no-startup-id unclutter -idle 1 -root
+
+# Onboard on-screen keyboard. Configure to auto-show on text-field focus
+# (Chromium emits AT-SPI events with --force-renderer-accessibility) and
+# float instead of dock (docking shrinks the chromium workarea and cuts
+# off page content at the bottom).
+exec --no-startup-id gsettings set org.onboard.auto-show enabled true
+exec --no-startup-id gsettings set org.onboard.window docking-enabled false
+exec --no-startup-id gsettings set org.onboard.window.landscape width 1280
+exec --no-startup-id gsettings set org.onboard.window.landscape height 340
+exec --no-startup-id gsettings set org.onboard.window.landscape x 0
+exec --no-startup-id gsettings set org.onboard.window.landscape y 684
+exec --no-startup-id onboard
+
+# Onboard's window should float on top of any workspace.
+for_window [class="(?i)onboard"] floating enable, sticky enable, border none

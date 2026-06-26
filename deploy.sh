@@ -47,9 +47,9 @@ if [ -z "${TIOSK_DEPLOY_REEXEC:-}" ]; then
     exec "$REPO_DIR/deploy.sh" "$@"
 fi
 
-echo "--- Ensure i3 + dex are installed ---"
-if ! command -v i3 >/dev/null 2>&1 || ! command -v dex >/dev/null 2>&1; then
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends i3 dex
+echo "--- Ensure i3 + dex + onboard are installed ---"
+if ! command -v i3 >/dev/null 2>&1 || ! command -v dex >/dev/null 2>&1 || ! command -v onboard >/dev/null 2>&1; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends i3 dex onboard
 fi
 
 echo "--- Redeploy i3 config ---"
