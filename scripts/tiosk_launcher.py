@@ -124,7 +124,7 @@ def launch_url(url, mode, profile_name):
     """Routing wrapper — STREAM goes to workspace 2, SERVICES to 4."""
     if mode.startswith("stream:"):
         return _launch_or_switch(url, mode, profile_name, STREAM_CLASS, 2)
-    scale = 0.95 if mode == "service:ug" else 1.0
+    scale = 0.9 if mode == "service:ug" else 1.0
     return _launch_or_switch(url, mode, profile_name, SERVICE_CLASS, 4, scale=scale)
 
 
