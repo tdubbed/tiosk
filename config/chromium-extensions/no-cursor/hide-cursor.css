@@ -1,0 +1,10 @@
+/* Hide the cursor on every element. !important beats per-element overrides
+   like a button's `cursor: pointer`. No cursor visible = no link tooltip
+   bar at the bottom of Chromium (no hover state). */
+*, *::before, *::after {
+  cursor: none !important;
+}
+
+html, body {
+  cursor: none !important;
+}

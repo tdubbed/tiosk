@@ -161,6 +161,11 @@ def _chromium_env():
     return env
 
 
+# Path MUST live inside the snap's allowed home — snap confinement blocks
+# chromium from reading anything outside /home/kiosk/snap/chromium/.
+_NO_CURSOR_EXT = "/home/kiosk/snap/chromium/common/chromium-extensions/no-cursor"
+
+
 def _spawn_chromium(url, profile_name, wm_class, scale=1.0):
     profile_dir = f"/home/kiosk/snap/chromium/common/.config/chromium-{profile_name}"
     return subprocess.Popen([
@@ -170,6 +175,9 @@ def _spawn_chromium(url, profile_name, wm_class, scale=1.0):
         "--disable-popup-blocking",
         "--password-store=basic",
         "--force-renderer-accessibility",
+        # Hide cursor on every page (no cursor = no link-hover preview bar).
+        f"--load-extension={_NO_CURSOR_EXT}",
+        f"--disable-extensions-except={_NO_CURSOR_EXT}",
         f"--class={wm_class}",
         f"--force-device-scale-factor={scale}",
         f"--user-data-dir={profile_dir}",

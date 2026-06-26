@@ -58,6 +58,15 @@ install -d -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
 install -m 644 -o "$KIOSK_USER" -g "$KIOSK_USER" \
     config/i3/config /home/"$KIOSK_USER"/.config/i3/config
 
+echo "--- Redeploy chromium no-cursor extension ---"
+# Snap chromium confinement requires the extension live under the snap's home.
+EXT_DIR="/home/$KIOSK_USER/snap/chromium/common/chromium-extensions/no-cursor"
+install -d -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" "$EXT_DIR"
+install -m 644 -o "$KIOSK_USER" -g "$KIOSK_USER" \
+    config/chromium-extensions/no-cursor/manifest.json "$EXT_DIR/manifest.json"
+install -m 644 -o "$KIOSK_USER" -g "$KIOSK_USER" \
+    config/chromium-extensions/no-cursor/hide-cursor.css "$EXT_DIR/hide-cursor.css"
+
 echo "--- Redeploy user scripts ---"
 install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
     scripts/tiosk_launcher.py /home/"$KIOSK_USER"/tiosk_launcher.py

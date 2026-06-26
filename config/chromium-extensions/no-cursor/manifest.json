@@ -1,0 +1,14 @@
+{
+  "name": "TIOSK No Cursor",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "description": "Hides the mouse cursor everywhere — touch kiosk has no mouse, so the hover state (and link-preview status bar) is just noise.",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["hide-cursor.css"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ]
+}
