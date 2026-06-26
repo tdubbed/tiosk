@@ -64,10 +64,9 @@ def toggle_mute():
 
 def go_home():
     bump_activity()
-    for cls in ["qiosk", "retroarch"]:
-        subprocess.run(["wmctrl", "-x", "-r", cls, "-b", "add,below"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    subprocess.run(["wmctrl", "-a", "TIOSK"],
+    # i3: just switch to workspace 1 (the launcher's workspace). Apps in
+    # other workspaces stay running, audio keeps playing, video resumes.
+    subprocess.run(["i3-msg", "workspace", "number", "1"],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     collapse()
 

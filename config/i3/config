@@ -1,0 +1,52 @@
+# TIOSK i3 config — touch kiosk, no keyboard.
+#
+# Workspace model:
+#   1 = launcher (always present, tkinter override-redirect window)
+#   2 = STREAM   (chromium running YT Music or YouTube)
+#   3 = ARCADE   (retroarch)
+#   4 = SERVICES (chromium running Tymo / AnyList / Ultimate Guitar)
+#
+# Switching apps = `i3-msg workspace N`. Instant. No z-order management.
+# Multiple kiosk apps coexist (each in its own workspace), so background
+# audio from STREAM keeps playing while SERVICES is on top.
+
+# No keyboard shortcuts — touch only. Set a meta key that doesn't conflict.
+set $mod Mod4
+
+# No focus follows mouse — annoying for touch.
+focus_follows_mouse no
+
+# Default: no titlebars, no borders. Kiosk wants chromeless.
+default_border none
+default_floating_border none
+hide_edge_borders both
+
+# Every window: floating + fullscreen.
+# The launcher is overrideredirect so i3 won't see it, but everything else
+# (chromium, retroarch, qiosk if used) gets the floating+fullscreen treatment.
+for_window [class=".*"] floating enable, fullscreen enable
+
+# Assign apps to their workspaces by class. New chromium/retroarch windows
+# land where we want them, regardless of which workspace we're on at launch.
+# (Launcher manages process spawning; this just routes the window.)
+assign [class="(?i)chromium-stream"] workspace number 2
+assign [class="(?i)retroarch"]       workspace number 3
+assign [class="(?i)chromium-service"] workspace number 4
+
+# Start on workspace 1 (launcher).
+exec --no-startup-id i3-msg workspace number 1
+
+# Disable the default status bar — we have our own HUD.
+# (No `bar { ... }` block means no bar.)
+
+# Don't focus a workspace when its window gets closed.
+workspace_auto_back_and_forth no
+
+# Autostart everything our XFCE session was doing. `dex` reads our existing
+# XDG autostart .desktop files so we don't have to duplicate them here.
+exec --no-startup-id dex --autostart --environment i3
+
+# Belt + suspenders: explicitly start our core services even if dex misses
+# something. `--no-startup-id` keeps i3 from showing the loading hourglass.
+exec_always --no-startup-id /home/kiosk/hide-cursor.sh
+exec_always --no-startup-id unclutter -idle 1 -root

@@ -1,23 +1,44 @@
 #!/usr/bin/env python3
-"""TIOSK Launcher — space theme, rounded buttons, wallpaper.
+"""TIOSK Launcher running under i3.
 
-State model:
-  current_proc / current_mode track the active app (qiosk-jukebox, qiosk-stream,
-  retroarch). Buttons:
-    * tapping the same mode that's already running → raise its window
-    * tapping a different mode → kill the running one, start new
-  HOME (on HUD) only lowers the active window; it does not kill the process,
-  so YouTube Music audio (and ARCADE state) survives a trip to the launcher.
+i3 workspaces map to kiosk app slots:
+  1 = launcher (this tk window)
+  2 = STREAM    (chromium-stream)
+  3 = ARCADE    (retroarch)
+  4 = SERVICES  (chromium-service)
+
+Switching apps = `i3-msg workspace N`. Launch happens by spawning
+chromium/retroarch with the right WM_CLASS, which i3's `assign` rules
+route to the correct workspace automatically. Multiple kiosk apps
+coexist (each in its own workspace), so STREAM keeps playing audio
+in the background while you're using SERVICES.
 """
 import tkinter as tk
 from PIL import Image, ImageTk, ImageEnhance
-import subprocess, os, threading
+import subprocess, os
 
 WALLPAPER = "/home/kiosk/wallpaper.jpg"
 STATE_FILE = "/tmp/tiosk_mode"
 
-current_proc = None
-current_mode = None
+STREAM_ITEMS = [
+    ("YouTube Music", "https://music.youtube.com/", "stream:ytmusic", "stream-ytmusic"),
+    ("YouTube",       "https://www.youtube.com/",   "stream:youtube", "stream-youtube"),
+]
+
+SERVICE_ITEMS = [
+    ("Tymo",            "https://tymo.westonfamily.lol/",   "service:tymo",    "svc-tymo"),
+    ("AnyList",         "https://www.anylist.com/web",      "service:anylist", "svc-anylist"),
+    ("Ultimate Guitar", "https://www.ultimate-guitar.com/", "service:ug",      "svc-ug"),
+]
+
+# WM_CLASS values — must match i3 config's `assign` rules.
+STREAM_CLASS = "chromium-stream"
+SERVICE_CLASS = "chromium-service"
+
+# Per-class tracking. One chromium per class.
+procs = {}          # wm_class -> Popen
+current_urls = {}   # wm_class -> currently-loaded URL
+_picker_window = None
 
 
 def write_state(mode):
@@ -28,210 +49,209 @@ def write_state(mode):
         pass
 
 
-def proc_alive():
-    return current_proc is not None and current_proc.poll() is None
+def i3msg(*args):
+    subprocess.run(["i3-msg"] + list(args),
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def kill_current():
-    global current_proc, current_mode
-    if proc_alive():
-        try:
-            current_proc.terminate()
-            current_proc.wait(timeout=2)
-        except Exception:
-            try:
-                current_proc.kill()
-            except Exception:
-                pass
-    current_proc = None
-    current_mode = None
-    write_state("")
+def alive(wm_class):
+    p = procs.get(wm_class)
+    return p is not None and p.poll() is None
 
 
-def raise_app(wm_class_substr):
-    """Lower the launcher, raise the running app's window."""
-    root.lower()
-    subprocess.run(
-        ["wmctrl", "-x", "-r", wm_class_substr, "-b", "remove,below"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    subprocess.run(
-        ["wmctrl", "-x", "-a", wm_class_substr],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-
-def stop_mopidy():
-    subprocess.run(
-        ["curl", "-s", "-m", "2", "-X", "POST",
-         "-H", "Content-Type: application/json",
-         "-d", '{"jsonrpc":"2.0","id":1,"method":"core.playback.stop"}',
-         "http://localhost:6680/mopidy/rpc"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-
-def force_fullscreen(wm_class_substr):
-    """Force the app's window borderless + 1280x1024 at 0,0.
-
-    Verified live: setting _NET_WM_WINDOW_TYPE_SPLASH + unmap/remap +
-    xdotool sync move/size gives zero frame extents and exact 1280x1024
-    coverage. Other combinations (Motif borderless, fullscreen state,
-    --setmonitor alone) failed because XFWM was still allocating 5px
-    side + 29px title borders + offsetting the placement.
-    """
-    import time
-    for attempt in range(8):
-        time.sleep(0.5)
-        try:
-            out = subprocess.check_output(
-                ["wmctrl", "-lx"], text=True, stderr=subprocess.DEVNULL)
-        except Exception:
-            continue
-        wid = None
-        for line in out.splitlines():
-            parts = line.split(None, 4)
-            if len(parts) >= 3 and wm_class_substr in parts[2].lower():
-                wid = parts[0]
-                break
-        if not wid:
-            continue
-        # 1. Remove fullscreen / maximized states
-        subprocess.run(
-            ["wmctrl", "-i", "-r", wid, "-b",
-             "remove,fullscreen,maximized_vert,maximized_horz"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # 2. Set WINDOW_TYPE to SPLASH (XFWM renders no decorations)
-        subprocess.run(
-            ["xprop", "-id", wid, "-f", "_NET_WM_WINDOW_TYPE", "32a",
-             "-set", "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_SPLASH"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # 3. Unmap + remap so XFWM re-evaluates with new type
-        subprocess.run(["xdotool", "windowunmap", "--sync", wid],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(0.3)
-        subprocess.run(["xdotool", "windowmap", "--sync", wid],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(0.3)
-        # 4. Exact position and size with --sync (waits for X to apply)
-        subprocess.run(["xdotool", "windowmove", "--sync", wid, "0", "0"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(["xdotool", "windowsize", "--sync", wid, "1280", "1024"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # 5. Keep on top so it covers the launcher beneath
-        subprocess.run(
-            ["wmctrl", "-i", "-r", wid, "-b", "add,above"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # 6. Force REAL input focus — SPLASH-type windows get
-        # _NET_WM_STATE_FOCUSED but X11 input focus stays on Desktop, so
-        # text fields don't receive input → virtual keyboard never triggers.
-        subprocess.run(
-            ["xdotool", "windowactivate", "--sync", wid],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+def kill_proc(wm_class):
+    p = procs.pop(wm_class, None)
+    current_urls.pop(wm_class, None)
+    if p is None:
         return
+    try:
+        p.terminate()
+        p.wait(timeout=2)
+    except Exception:
+        try: p.kill()
+        except Exception: pass
 
 
-def launch_jukebox():
-    global current_proc, current_mode
-    if current_mode == "jukebox" and proc_alive():
-        raise_app("qiosk")
-        return
-    kill_current()
+def cleanup_dead():
+    for cls in list(procs):
+        if procs[cls].poll() is not None:
+            procs.pop(cls, None)
+            current_urls.pop(cls, None)
+
+
+def _chromium_env():
     env = os.environ.copy()
-    env["QT_IM_MODULE"] = "qtvirtualkeyboard"
-    # Force the IM context to load eagerly. Without this, QtWebEngine
-    # sometimes fails to register IM focus events from Chromium-rendered
-    # text fields, so tapping a text field never triggers the keyboard.
-    env["QT_VIRTUALKEYBOARD_DESKTOP_DISABLE"] = "0"
-    env["QT_VIRTUALKEYBOARD_HIDE_ON_NO_FOCUS"] = "0"
     env["XCURSOR_THEME"] = "blank"
     env["XCURSOR_PATH"] = "/home/kiosk/.icons:/usr/share/icons"
     env["XCURSOR_SIZE"] = "1"
-    root.lower()
-    current_proc = subprocess.Popen(
-        ["qiosk", "-f", "--profile-name", "kiosk",
-         "http://localhost:6680/iris/"], env=env)
-    current_mode = "jukebox"
-    write_state("jukebox")
-    threading.Thread(target=force_fullscreen, args=("qiosk",), daemon=True).start()
+    return env
 
 
-def launch_stream():
-    global current_proc, current_mode
-    if current_mode == "stream" and proc_alive():
-        raise_app("qiosk")
+def _spawn_chromium(url, profile_name, wm_class, scale=1.0):
+    profile_dir = f"/home/kiosk/snap/chromium/common/.config/chromium-{profile_name}"
+    return subprocess.Popen([
+        "/snap/bin/chromium",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-popup-blocking",
+        "--password-store=basic",
+        "--force-renderer-accessibility",
+        f"--class={wm_class}",
+        f"--force-device-scale-factor={scale}",
+        f"--user-data-dir={profile_dir}",
+        f"--app={url}",
+    ], env=_chromium_env())
+
+
+def _launch_or_switch(url, mode, profile_name, wm_class, workspace, scale=1.0):
+    """Core launch logic. If chromium for this class is alive AND the URL
+    matches what's loaded, just switch to the workspace. Otherwise kill
+    the existing (if any) and launch fresh."""
+    cleanup_dead()
+    if alive(wm_class) and current_urls.get(wm_class) == url:
+        i3msg("workspace", "number", str(workspace))
+        write_state(mode)
         return
-    kill_current()
-    stop_mopidy()
-    env = os.environ.copy()
-    env["QT_IM_MODULE"] = "qtvirtualkeyboard"
-    # Force the IM context to load eagerly. Without this, QtWebEngine
-    # sometimes fails to register IM focus events from Chromium-rendered
-    # text fields, so tapping a text field never triggers the keyboard.
-    env["QT_VIRTUALKEYBOARD_DESKTOP_DISABLE"] = "0"
-    env["QT_VIRTUALKEYBOARD_HIDE_ON_NO_FOCUS"] = "0"
-    env["XCURSOR_THEME"] = "blank"
-    env["XCURSOR_PATH"] = "/home/kiosk/.icons:/usr/share/icons"
-    env["XCURSOR_SIZE"] = "1"
-    root.lower()
-    current_proc = subprocess.Popen(
-        ["qiosk", "-f", "--profile-name", "stream",
-         "https://music.youtube.com/"], env=env)
-    current_mode = "stream"
-    write_state("stream")
-    threading.Thread(target=force_fullscreen, args=("qiosk",), daemon=True).start()
+    kill_proc(wm_class)
+    procs[wm_class] = _spawn_chromium(url, profile_name, wm_class, scale=scale)
+    current_urls[wm_class] = url
+    write_state(mode)
+    # i3 routes new window to the assigned workspace; switch view.
+    i3msg("workspace", "number", str(workspace))
+
+
+def launch_url(url, mode, profile_name):
+    """Routing wrapper — STREAM goes to workspace 2, SERVICES to 4."""
+    if mode.startswith("stream:"):
+        return _launch_or_switch(url, mode, profile_name, STREAM_CLASS, 2)
+    scale = 0.95 if mode == "service:ug" else 1.0
+    return _launch_or_switch(url, mode, profile_name, SERVICE_CLASS, 4, scale=scale)
 
 
 def launch_arcade():
-    global current_proc, current_mode
-    if current_mode == "arcade" and proc_alive():
-        raise_app("retroarch")
-        return
-    kill_current()
-    stop_mopidy()
-    root.lower()
-    try:
-        current_proc = subprocess.Popen(["retroarch", "--fullscreen"])
-        current_mode = "arcade"
+    cleanup_dead()
+    if alive("retroarch"):
+        i3msg("workspace", "number", "3")
         write_state("arcade")
-        threading.Thread(target=force_fullscreen, args=("retroarch",), daemon=True).start()
+        return
+    try:
+        procs["retroarch"] = subprocess.Popen(["retroarch", "--fullscreen"])
+        write_state("arcade")
+        i3msg("workspace", "number", "3")
     except FileNotFoundError:
         pass
 
 
 def quit_launcher(event=None):
-    kill_current()
+    for cls in list(procs):
+        kill_proc(cls)
     root.destroy()
 
 
 def check_child():
-    """If the active child died on its own, return to launcher view."""
-    global current_proc, current_mode
-    if current_mode and not proc_alive():
-        current_proc = None
-        current_mode = None
-        write_state("")
-        root.lift()
-        root.geometry(f"{SCREEN_W}x{SCREEN_H}+0+0")
-    root.after(1000, check_child)
+    cleanup_dead()
+    root.after(2000, check_child)
 
+
+# ---------------------------------------------------------------------------
+# Picker sheet (shared by STREAM and SERVICES).
+# ---------------------------------------------------------------------------
+
+
+def close_picker():
+    global _picker_window
+    if _picker_window is not None:
+        try:
+            _picker_window.destroy()
+        except Exception:
+            pass
+        _picker_window = None
+
+
+def show_picker(title, items, accent_fill, accent_outline):
+    global _picker_window
+    close_picker()
+    win = tk.Toplevel(root)
+    _picker_window = win
+    win.overrideredirect(True)
+    win.configure(bg="#0a0a0a", cursor="none")
+
+    rows = len(items) + 1
+    pad = 20
+    row_h = 130
+    row_gap = 18
+    panel_w = 760
+    panel_h = pad * 2 + rows * row_h + (rows - 1) * row_gap + 90
+
+    x = (SCREEN_W - panel_w) // 2
+    y = (SCREEN_H - panel_h) // 2
+    win.geometry(f"{panel_w}x{panel_h}+{x}+{y}")
+
+    cv = tk.Canvas(win, width=panel_w, height=panel_h,
+                   bg="#0a0a0a", highlightthickness=2,
+                   highlightbackground=accent_outline)
+    cv.pack(fill="both", expand=True)
+
+    cv.create_text(panel_w // 2, 50, text=title,
+                   font=("DejaVu Sans", 32, "bold"),
+                   fill=accent_outline)
+
+    def add_row(idx, label, on_tap, fill, outline):
+        cy = pad + 90 + idx * (row_h + row_gap) + row_h // 2
+        x1 = pad
+        x2 = panel_w - pad
+        r = row_h // 2
+        drawn = [
+            cv.create_oval(x1, cy - r, x1 + 2 * r, cy + r,
+                           fill=fill, outline=outline, width=3),
+            cv.create_oval(x2 - 2 * r, cy - r, x2, cy + r,
+                           fill=fill, outline=outline, width=3),
+            cv.create_rectangle(x1 + r, cy - r, x2 - r, cy + r,
+                                fill=fill, outline=""),
+            cv.create_line(x1 + r, cy - r, x2 - r, cy - r,
+                           fill=outline, width=3),
+            cv.create_line(x1 + r, cy + r, x2 - r, cy + r,
+                           fill=outline, width=3),
+            cv.create_text(panel_w // 2, cy, text=label,
+                           font=("DejaVu Sans", 32, "bold"), fill="#ffffff"),
+        ]
+        for it in drawn:
+            cv.tag_bind(it, "<Button-1>", lambda e: on_tap())
+
+    for idx, (label, url, mode, profile) in enumerate(items):
+        def go(u=url, m=mode, p=profile):
+            close_picker()
+            launch_url(u, m, p)
+        add_row(idx, label, go, accent_fill, accent_outline)
+    add_row(len(items), "Cancel", close_picker, "#333333", "#888888")
+
+
+def show_stream_picker():
+    if len(STREAM_ITEMS) == 1:
+        _, url, mode, profile = STREAM_ITEMS[0]
+        launch_url(url, mode, profile)
+        return
+    show_picker("STREAM", STREAM_ITEMS, "#1e5f3a", "#5fff9f")
+
+
+def show_services_picker():
+    show_picker("SERVICES", SERVICE_ITEMS, "#1e3a5f", "#5f9fff")
+
+
+# ---------------------------------------------------------------------------
+# Root window
+# ---------------------------------------------------------------------------
 
 root = tk.Tk()
 root.title("TIOSK")
 root.configure(bg="#000000", cursor="none")
 root.bind("<Escape>", quit_launcher)
 
-# Use explicit framebuffer-spanning geometry instead of -fullscreen.
-# Reason: -fullscreen is MONITOR-relative on X11. With HDMI mirror enabled
-# (HDMI1 at 1280x720 mirroring DP2 at 1280x1024), XFWM treats them as two
-# monitors and fullscreens onto the SMALLER one — leaving a 304px strip
-# of XFCE wallpaper visible at the bottom of the Elo. overrideredirect +
-# explicit geometry covers the full framebuffer regardless.
 SCREEN_W = root.winfo_screenwidth()
 SCREEN_H = root.winfo_screenheight()
 root.overrideredirect(True)
 root.geometry(f"{SCREEN_W}x{SCREEN_H}+0+0")
 
-# Load + scale wallpaper. Keep contrast high — old code dimmed it to 65% to
-# make pills readable, but that killed the "crisp" feel. With darker pills
-# (more solid fill + outline), we can leave the wallpaper at full punch.
 img = Image.open(WALLPAPER)
 img_w, img_h = img.size
 scale = max(SCREEN_W / img_w, SCREEN_H / img_h)
@@ -240,7 +260,6 @@ img = img.resize(new_size, Image.LANCZOS)
 left = (img.size[0] - SCREEN_W) // 2
 top = (img.size[1] - SCREEN_H) // 2
 img = img.crop((left, top, left + SCREEN_W, top + SCREEN_H))
-# Minimal darken (just enough so title text reads) + slight contrast boost
 dark = Image.new("RGB", img.size, "black")
 img = Image.blend(img, dark, 0.15)
 img = ImageEnhance.Contrast(img).enhance(1.10)
@@ -264,32 +283,45 @@ canvas.create_text(SCREEN_W // 2, title_y, text="T-OSK",
 def make_pill(cx, cy, w, h, label, fill, accent, command):
     x1, y1, x2, y2 = cx - w // 2, cy - h // 2, cx + w // 2, cy + h // 2
     r = h // 2
-    canvas.create_oval(x1 + 4, y1 + 4, x1 + 2 * r + 4, y2 + 4, fill="#000000", outline="")
-    canvas.create_oval(x2 - 2 * r + 4, y1 + 4, x2 + 4, y2 + 4, fill="#000000", outline="")
-    canvas.create_rectangle(x1 + r + 4, y1 + 4, x2 - r + 4, y2 + 4, fill="#000000", outline="")
-    items = []
-    items.append(canvas.create_oval(x1, y1, x1 + 2 * r, y2, fill=fill, outline=accent, width=3))
-    items.append(canvas.create_oval(x2 - 2 * r, y1, x2, y2, fill=fill, outline=accent, width=3))
-    items.append(canvas.create_rectangle(x1 + r, y1, x2 - r, y2, fill=fill, outline=""))
-    items.append(canvas.create_line(x1 + r, y1, x2 - r, y1, fill=accent, width=3))
-    items.append(canvas.create_line(x1 + r, y2, x2 - r, y2, fill=accent, width=3))
-    txt = canvas.create_text(cx, cy, text=label, font=("DejaVu Sans", 42, "bold"),
-                             fill="#ffffff")
-    items.append(txt)
-    for item in items:
-        canvas.tag_bind(item, "<Button-1>", lambda e: command())
+    canvas.create_oval(x1 + 4, y1 + 4, x1 + 2 * r + 4, y2 + 4,
+                       fill="#000000", outline="")
+    canvas.create_oval(x2 - 2 * r + 4, y1 + 4, x2 + 4, y2 + 4,
+                       fill="#000000", outline="")
+    canvas.create_rectangle(x1 + r + 4, y1 + 4, x2 - r + 4, y2 + 4,
+                            fill="#000000", outline="")
+    drawn = [
+        canvas.create_oval(x1, y1, x1 + 2 * r, y2,
+                           fill=fill, outline=accent, width=3),
+        canvas.create_oval(x2 - 2 * r, y1, x2, y2,
+                           fill=fill, outline=accent, width=3),
+        canvas.create_rectangle(x1 + r, y1, x2 - r, y2,
+                                fill=fill, outline=""),
+        canvas.create_line(x1 + r, y1, x2 - r, y1,
+                           fill=accent, width=3),
+        canvas.create_line(x1 + r, y2, x2 - r, y2,
+                           fill=accent, width=3),
+        canvas.create_text(cx, cy, text=label,
+                           font=("DejaVu Sans", 36, "bold"),
+                           fill="#ffffff"),
+    ]
+    for it in drawn:
+        canvas.tag_bind(it, "<Button-1>", lambda e: command())
 
 
 btn_y = SCREEN_H // 2 + 80
-btn_w, btn_h = 400, 140
-spacing = 80
-left_cx = SCREEN_W // 2 - (btn_w + spacing) // 2
-right_cx = SCREEN_W // 2 + (btn_w + spacing) // 2
+btn_w, btn_h = 360, 130
+spacing = 60
+total = 3 * btn_w + 2 * spacing
+left_cx = (SCREEN_W - total) // 2 + btn_w // 2
+mid_cx = left_cx + btn_w + spacing
+right_cx = mid_cx + btn_w + spacing
 
 make_pill(left_cx, btn_y, btn_w, btn_h, "STREAM",
-          "#1e5f3a", "#5fff9f", launch_stream)
-make_pill(right_cx, btn_y, btn_w, btn_h, "ARCADE",
+          "#1e5f3a", "#5fff9f", show_stream_picker)
+make_pill(mid_cx, btn_y, btn_w, btn_h, "ARCADE",
           "#5f1e3a", "#ff5fa8", launch_arcade)
+make_pill(right_cx, btn_y, btn_w, btn_h, "SERVICES",
+          "#1e3a5f", "#5f9fff", show_services_picker)
 
 check_child()
 root.mainloop()

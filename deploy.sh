@@ -43,6 +43,17 @@ if [ -z "${TIOSK_DEPLOY_REEXEC:-}" ]; then
     exec "$REPO_DIR/deploy.sh" "$@"
 fi
 
+echo "--- Ensure i3 + dex are installed ---"
+if ! command -v i3 >/dev/null 2>&1 || ! command -v dex >/dev/null 2>&1; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends i3 dex
+fi
+
+echo "--- Redeploy i3 config ---"
+install -d -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
+    /home/"$KIOSK_USER"/.config/i3
+install -m 644 -o "$KIOSK_USER" -g "$KIOSK_USER" \
+    config/i3/config /home/"$KIOSK_USER"/.config/i3/config
+
 echo "--- Redeploy user scripts ---"
 install -m 755 -o "$KIOSK_USER" -g "$KIOSK_USER" \
     scripts/tiosk_launcher.py /home/"$KIOSK_USER"/tiosk_launcher.py
