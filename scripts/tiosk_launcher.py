@@ -79,6 +79,15 @@ def cleanup_dead():
             current_urls.pop(cls, None)
 
 
+def kill_orphans_at_startup():
+    """When the launcher restarts (e.g. tiosk-deploy --dev), its child
+    chromium/retroarch processes don't die with it. Kill them at startup
+    so we don't accumulate zombie YouTube tabs each redeploy."""
+    for needle in [f"--class={STREAM_CLASS}", f"--class={SERVICE_CLASS}", "retroarch"]:
+        subprocess.run(["pkill", "-f", needle],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 def _chromium_env():
     env = os.environ.copy()
     env["XCURSOR_THEME"] = "blank"
@@ -326,5 +335,6 @@ make_pill(mid_cx, btn_y, btn_w, btn_h, "ARCADE",
 make_pill(right_cx, btn_y, btn_w, btn_h, "SERVICES",
           "#1e3a5f", "#5f9fff", show_services_picker)
 
+kill_orphans_at_startup()
 check_child()
 root.mainloop()
