@@ -79,13 +79,78 @@ def cleanup_dead():
             current_urls.pop(cls, None)
 
 
-def kill_orphans_at_startup():
-    """When the launcher restarts (e.g. tiosk-deploy --dev), its child
-    chromium/retroarch processes don't die with it. Kill them at startup
-    so we don't accumulate zombie YouTube tabs each redeploy."""
-    for needle in [f"--class={STREAM_CLASS}", f"--class={SERVICE_CLASS}", "retroarch"]:
-        subprocess.run(["pkill", "-f", needle],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+class _AdoptedProc:
+    """Stand-in for subprocess.Popen when we adopt a process that was
+    started by a previous launcher instance. Exposes the .poll() /
+    .terminate() / .kill() / .wait() surface the rest of the launcher
+    uses, backed by os.kill(pid, 0) for liveness."""
+    def __init__(self, pid):
+        self.pid = pid
+    def poll(self):
+        try:
+            os.kill(self.pid, 0)
+            return None
+        except OSError:
+            return -1
+    def terminate(self):
+        try: os.kill(self.pid, 15)
+        except OSError: pass
+    def kill(self):
+        try: os.kill(self.pid, 9)
+        except OSError: pass
+    def wait(self, timeout=None):
+        import time
+        deadline = time.time() + (timeout if timeout is not None else 2)
+        while time.time() < deadline:
+            if self.poll() is not None:
+                return
+            time.sleep(0.1)
+
+
+def adopt_orphans_at_startup():
+    """The launcher process is restarted by tiosk-deploy --dev, but its
+    child chromium/retroarch processes survive. Find them by class /
+    name, parse their --app=URL out of /proc/PID/cmdline, and register
+    them in procs/current_urls so tapping the same option again raises
+    the existing window instead of spawning a duplicate.
+
+    Skips chromium subprocesses (renderer/zygote/utility/gpu) — they have
+    --type= in their cmdline; we only want the main browser process."""
+    import re
+    for wm_class in [STREAM_CLASS, SERVICE_CLASS]:
+        try:
+            out = subprocess.check_output(
+                ["pgrep", "-f", f"--class={wm_class}"],
+                text=True, stderr=subprocess.DEVNULL,
+            ).strip()
+        except subprocess.CalledProcessError:
+            continue
+        for pid_str in out.splitlines():
+            try:
+                pid = int(pid_str)
+            except ValueError:
+                continue
+            try:
+                with open(f"/proc/{pid}/cmdline", "rb") as f:
+                    cmdline = f.read().replace(b"\0", b" ").decode("utf-8", "ignore")
+            except OSError:
+                continue
+            if "--type=" in cmdline:
+                continue
+            m = re.search(r"--app=(\S+)", cmdline)
+            if not m:
+                continue
+            procs[wm_class] = _AdoptedProc(pid)
+            current_urls[wm_class] = m.group(1)
+            break
+    try:
+        out = subprocess.check_output(
+            ["pgrep", "-x", "retroarch"], text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+        if out:
+            procs["retroarch"] = _AdoptedProc(int(out.splitlines()[0]))
+    except subprocess.CalledProcessError:
+        pass
 
 
 def _chromium_env():
@@ -335,6 +400,6 @@ make_pill(mid_cx, btn_y, btn_w, btn_h, "ARCADE",
 make_pill(right_cx, btn_y, btn_w, btn_h, "SERVICES",
           "#1e3a5f", "#5f9fff", show_services_picker)
 
-kill_orphans_at_startup()
+adopt_orphans_at_startup()
 check_child()
 root.mainloop()
