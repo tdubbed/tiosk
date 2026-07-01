@@ -11,7 +11,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 KIOSK_USER="kiosk"
-NAS_IP="192.168.68.100"
+NAS_IP="${NAS_IP:-192.168.1.100}"  # set to your local NAS
 NAS_EXPORT="/mnt/storage/tdrive"
 NAS_MOUNT="/mnt/nas"
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"

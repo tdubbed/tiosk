@@ -4,10 +4,10 @@ A self-contained touchscreen jukebox + arcade kiosk built on Xubuntu.
 
 ## Hardware
 
-- **Chassis:** Repurposed Kiosk Information Systems pedestal (former Samuel U. Rodgers Health Center community kiosk)
+- **Chassis:** Repurposed community-kiosk pedestal (surplus e-waste)
 - **PC:** Dell OptiPlex 5040 SFF — i5-6500, 16 GB DDR4, M.2 NVMe
 - **Display:** 1280×1024 Elo TouchSystems 2216 AccuTouch (single-touch resistive)
-- **Networking:** Ethernet to home LAN (.105), WoL enabled (MAC 48:4d:7e:d1:64:eb)
+- **Networking:** Ethernet to home LAN, WoL enabled
 
 ## Software stack
 
