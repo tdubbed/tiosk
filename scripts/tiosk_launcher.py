@@ -25,12 +25,24 @@ STREAM_ITEMS = [
     ("YouTube",       "https://www.youtube.com/",   "stream:youtube", "stream-youtube"),
 ]
 
+# Local services point at IP:port, NOT the westonfamily.lol names — the names
+# resolve through Caddy and, off-LAN or on a DNS hiccup, through the Cloudflare
+# tunnel. The kiosk is always on the LAN, so going direct removes the whole
+# tunnel from the path: no DNS dependency, no TLS, no round trip.
+#
+# What that costs, and why it is fine here:
+#   Woodshed  no HTTPS means no service worker and no microphone. The kiosk
+#             has no mic, and the app is network-first, so neither is used.
+#   HUD       must include /face/ (Caddy rewrites that in). Its api/say and
+#             api/voice calls are relative and will 404 direct — those are the
+#             voice/text CONTROL endpoints (proxied to TPro:8101), not display.
+# AnyList and Ultimate Guitar are genuinely external and stay on HTTPS.
 SERVICE_ITEMS = [
-    ("Tymo",            "https://tymo.westonfamily.lol/",   "service:tymo",    "svc-tymo"),
+    ("Tymo",            "http://192.168.68.100:8095/",      "service:tymo",    "svc-tymo"),
     ("AnyList",         "https://www.anylist.com/web",      "service:anylist", "svc-anylist"),
     ("Ultimate Guitar", "https://www.ultimate-guitar.com/", "service:ug",      "svc-ug"),
-    ("Woodshed",        "https://studio.westonfamily.lol/", "service:studio",  "svc-studio"),
-    ("HUD",             "https://hud.westonfamily.lol/",    "service:hud",     "svc-hud"),
+    ("Woodshed",        "http://192.168.68.100:8098/",      "service:studio",  "svc-studio"),
+    ("HUD",             "http://192.168.68.100:8100/face/", "service:hud",     "svc-hud"),
 ]
 
 # WM_CLASS values — must match i3 config's `assign` rules.
