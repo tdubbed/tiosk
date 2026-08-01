@@ -29,6 +29,8 @@ SERVICE_ITEMS = [
     ("Tymo",            "https://tymo.westonfamily.lol/",   "service:tymo",    "svc-tymo"),
     ("AnyList",         "https://www.anylist.com/web",      "service:anylist", "svc-anylist"),
     ("Ultimate Guitar", "https://www.ultimate-guitar.com/", "service:ug",      "svc-ug"),
+    ("Woodshed",        "https://studio.westonfamily.lol/", "service:studio",  "svc-studio"),
+    ("HUD",             "https://hud.westonfamily.lol/",    "service:hud",     "svc-hud"),
 ]
 
 # WM_CLASS values — must match i3 config's `assign` rules.
