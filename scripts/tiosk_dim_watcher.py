@@ -7,9 +7,9 @@ on wake so the on-screen keyboard keeps firing:
 
     0 min idle    →  normal brightness, no saver
    15 min idle    →  xscreensaver activates (BLANK event)  → start 15-min timer
-   30 min idle    →  xrandr --brightness 0.35              ← this script
+   30 min idle    →  xrandr --brightness 0.35 (or lower)   ← this script
    90 min idle    →  DPMS turns the monitor off            (xscreensaver natively)
-   touch/UNBLANK  →  restore brightness to 1.0             ← this script
+   touch/UNBLANK  →  restore the HUD's chosen level         ← this script
                   →  xdotool windowactivate the kiosk app  ← this script
 
 The wake-time windowactivate is what keeps Qt's virtual keyboard working after
@@ -25,15 +25,31 @@ import time
 
 OUTPUT = "DP-2"
 DIM_DELAY_SEC = 15 * 60          # how long after BLANK before we dim
-DIM_LEVEL = "0.35"               # xrandr --brightness arg when dimmed
-FULL_LEVEL = "1.0"               # restored brightness
+DIM_LEVEL = 0.35                 # xrandr --brightness arg when dimmed
+
+# ★ "Full" is whatever the user last picked in the HUD's ☀ panel, NOT 1.0.
+# This used to be a hard-coded 1.0, which meant a screen dimmed by hand went
+# back to blinding on the first UNBLANK — the setting looked like it had been
+# ignored. Both scripts read the same file; the HUD writes it.
+BRIGHTNESS_FILE = "/home/kiosk/.tiosk_brightness"
+DEFAULT_LEVEL = 1.0
 WAKE_REFOCUS_CLASSES = ("qiosk", "retroarch")
 WAKE_REFOCUS_DELAY_SEC = 0.4     # let xscreensaver finish unmapping first
 
 
+def full_level():
+    """The user's chosen brightness, or full if they have never set one."""
+    try:
+        with open(BRIGHTNESS_FILE) as f:
+            v = float(f.read().strip())
+        return v if 0.1 <= v <= 1.0 else DEFAULT_LEVEL
+    except Exception:
+        return DEFAULT_LEVEL
+
+
 def set_brightness(level):
     subprocess.run(
-        ["xrandr", "--output", OUTPUT, "--brightness", level],
+        ["xrandr", "--output", OUTPUT, "--brightness", "{:.2f}".format(float(level))],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
 
@@ -48,7 +64,10 @@ def schedule_dim():
     with _lock:
         if _dim_timer is not None:
             _dim_timer.cancel()
-        _dim_timer = threading.Timer(DIM_DELAY_SEC, lambda: set_brightness(DIM_LEVEL))
+        # min(): if the screen is already sitting at NIGHT (0.25), "dimming"
+        # to 0.35 would brighten it.
+        _dim_timer = threading.Timer(
+            DIM_DELAY_SEC, lambda: set_brightness(min(DIM_LEVEL, full_level())))
         _dim_timer.daemon = True
         _dim_timer.start()
 
@@ -85,13 +104,13 @@ def cancel_dim_and_restore():
         if _dim_timer is not None:
             _dim_timer.cancel()
             _dim_timer = None
-    set_brightness(FULL_LEVEL)
+    set_brightness(full_level())
     threading.Thread(target=reactivate_kiosk_window, daemon=True).start()
 
 
 def main():
-    # Start at full brightness in case a previous run left it dimmed.
-    set_brightness(FULL_LEVEL)
+    # Start at the user's level in case a previous run left it dimmed.
+    set_brightness(full_level())
 
     while True:
         try:
