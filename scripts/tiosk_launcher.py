@@ -38,6 +38,7 @@ STREAM_ITEMS = [
 #             voice/text CONTROL endpoints (proxied to TPro:8101), not display.
 # AnyList and Ultimate Guitar are genuinely external and stay on HTTPS.
 SERVICE_ITEMS = [
+    ("Glow",            "http://192.168.68.187:8108/",      "service:glow",    "svc-glow"),
     ("Tymo",            "http://192.168.68.100:8095/",      "service:tymo",    "svc-tymo"),
     ("AnyList",         "https://www.anylist.com/web",      "service:anylist", "svc-anylist"),
     ("Ultimate Guitar", "https://www.ultimate-guitar.com/", "service:ug",      "svc-ug"),
@@ -288,7 +289,18 @@ def show_picker(title, items, accent_fill, accent_outline):
     row_h = 130
     row_gap = 18
     panel_w = 760
-    panel_h = pad * 2 + rows * row_h + (rows - 1) * row_gap + 90
+    header = 90
+
+    # The panel used to be sized from a fixed row height, so every item added
+    # made it taller — at six services it ran off the bottom of the 1024px
+    # screen and the Cancel row became untappable. Rows now shrink to fit.
+    avail = SCREEN_H - 40 - pad * 2 - header - (rows - 1) * row_gap
+    if rows * row_h > avail:
+        row_gap = 12
+        avail = SCREEN_H - 40 - pad * 2 - header - (rows - 1) * row_gap
+        row_h = max(72, avail // rows)
+
+    panel_h = pad * 2 + rows * row_h + (rows - 1) * row_gap + header
 
     x = (SCREEN_W - panel_w) // 2
     y = (SCREEN_H - panel_h) // 2
@@ -303,8 +315,10 @@ def show_picker(title, items, accent_fill, accent_outline):
                    font=("DejaVu Sans", 32, "bold"),
                    fill=accent_outline)
 
+    row_font = ("DejaVu Sans", max(20, min(32, int(row_h * 0.26))), "bold")
+
     def add_row(idx, label, on_tap, fill, outline):
-        cy = pad + 90 + idx * (row_h + row_gap) + row_h // 2
+        cy = pad + header + idx * (row_h + row_gap) + row_h // 2
         x1 = pad
         x2 = panel_w - pad
         r = row_h // 2
@@ -320,7 +334,7 @@ def show_picker(title, items, accent_fill, accent_outline):
             cv.create_line(x1 + r, cy + r, x2 - r, cy + r,
                            fill=outline, width=3),
             cv.create_text(panel_w // 2, cy, text=label,
-                           font=("DejaVu Sans", 32, "bold"), fill="#ffffff"),
+                           font=row_font, fill="#ffffff"),
         ]
         for it in drawn:
             cv.tag_bind(it, "<Button-1>", lambda e: on_tap())
