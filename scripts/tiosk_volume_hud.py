@@ -27,7 +27,7 @@ EQ_SCRIPT = "/home/kiosk/tiosk_eq.sh"
 # 1.0 — so a level set here would survive only until the next screensaver
 # cycle, then silently snap back to blinding. Both scripts now read this file.
 BRIGHTNESS_FILE = "/home/kiosk/.tiosk_brightness"
-BRIGHTNESS_OUTPUT = "DP-2"          # same output as the dim watcher
+BRIGHTNESS_FALLBACK_OUTPUT = "DP2"  # only if detection finds nothing
 BRIGHTNESS_LEVELS = [("FULL", 1.0), ("DIM", 0.7), ("DARK", 0.45), ("NIGHT", 0.25)]
 AUTO_COLLAPSE_SEC = 20  # seconds of inactivity before HUD auto-collapses
 
@@ -84,6 +84,33 @@ def go_home():
     collapse()
 
 
+def detect_output():
+    """Ask X which output to dim, instead of trusting a hard-coded name.
+
+    ★ This was `DP-2` for a long time and the real name is `DP2` — xrandr
+    answered "warning: output DP-2 not found; ignoring" into a DEVNULL'd
+    stderr, so the dim never happened and nothing ever said so. Detecting it
+    means a swapped cable or a new monitor cannot silently kill this again.
+    Prefers the primary; HDMI1 (the TV) is deliberately not the fallback.
+    """
+    try:
+        out = subprocess.check_output(["xrandr", "-q"], text=True,
+                                      stderr=subprocess.DEVNULL)
+    except Exception:
+        return BRIGHTNESS_FALLBACK_OUTPUT
+    connected = []
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[1] == "connected":
+            connected.append(parts[0])
+            if "primary" in parts[:3]:
+                return parts[0]
+    for name in connected:
+        if name.startswith("DP"):
+            return name
+    return connected[0] if connected else BRIGHTNESS_FALLBACK_OUTPUT
+
+
 def read_brightness():
     try:
         with open(BRIGHTNESS_FILE) as f:
@@ -103,7 +130,7 @@ def set_brightness(level):
             f.write("{:.2f}".format(level))
     except OSError:
         pass
-    subprocess.run(["xrandr", "--output", BRIGHTNESS_OUTPUT,
+    subprocess.run(["xrandr", "--output", detect_output(),
                     "--brightness", "{:.2f}".format(level)],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if hasattr(open_brightness, "_win") and open_brightness._win.winfo_exists():

@@ -16,14 +16,14 @@ The wake-time windowactivate is what keeps Qt's virtual keyboard working after
 a screensaver cycle. Without it, qiosk loses input focus and tapping a text
 field does nothing.
 
-Output is hard-coded to DP-2 (the AccuTouch's connector on the OptiPlex 5040).
-If you ever change monitors/cables, update OUTPUT below.
+The output is detected from xrandr at each call (the AccuTouch is DP2 on the
+OptiPlex 5040); FALLBACK_OUTPUT is only used if the detection finds nothing.
 """
 import subprocess
 import threading
 import time
 
-OUTPUT = "DP-2"
+FALLBACK_OUTPUT = "DP2"
 DIM_DELAY_SEC = 15 * 60          # how long after BLANK before we dim
 DIM_LEVEL = 0.35                 # xrandr --brightness arg when dimmed
 
@@ -35,6 +35,33 @@ BRIGHTNESS_FILE = "/home/kiosk/.tiosk_brightness"
 DEFAULT_LEVEL = 1.0
 WAKE_REFOCUS_CLASSES = ("qiosk", "retroarch")
 WAKE_REFOCUS_DELAY_SEC = 0.4     # let xscreensaver finish unmapping first
+
+
+def detect_output():
+    """Ask X which output to dim, instead of trusting a hard-coded name.
+
+    ★ This was `DP-2` for a long time and the real name is `DP2` — xrandr
+    answered "warning: output DP-2 not found; ignoring" into a DEVNULL'd
+    stderr, so the dim never happened and nothing ever said so. Detecting it
+    means a swapped cable or a new monitor cannot silently kill this again.
+    Prefers the primary; HDMI1 (the TV) is deliberately not the fallback.
+    """
+    try:
+        out = subprocess.check_output(["xrandr", "-q"], text=True,
+                                      stderr=subprocess.DEVNULL)
+    except Exception:
+        return FALLBACK_OUTPUT
+    connected = []
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[1] == "connected":
+            connected.append(parts[0])
+            if "primary" in parts[:3]:
+                return parts[0]
+    for name in connected:
+        if name.startswith("DP"):
+            return name
+    return connected[0] if connected else FALLBACK_OUTPUT
 
 
 def full_level():
@@ -49,7 +76,8 @@ def full_level():
 
 def set_brightness(level):
     subprocess.run(
-        ["xrandr", "--output", OUTPUT, "--brightness", "{:.2f}".format(float(level))],
+        ["xrandr", "--output", detect_output(), "--brightness",
+         "{:.2f}".format(float(level))],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
 
