@@ -182,8 +182,19 @@ _NO_CURSOR_EXT = "/home/kiosk/snap/chromium/common/chromium-extensions/no-cursor
 
 def _spawn_chromium(url, profile_name, wm_class, scale=1.0):
     profile_dir = f"/home/kiosk/snap/chromium/common/.config/chromium-{profile_name}"
+    # Size the window to the SCREEN, not chromium's stock 1050x840 default.
+    # i3's `for_window [class=".*"] floating enable, fullscreen enable` fires once,
+    # at map time, and captures the window's size as its floating rect. When a page
+    # (YouTube) toggles HTML5 fullscreen OFF, i3 restores that floating rect -- so a
+    # default-sized window came back 1050x1004 on a 1280x1024 screen, leaving a black
+    # band down the right. --window-size is in DIPs, hence the divide by scale.
+    #                                                              (fixed 2026-09-21)
+    win_w = int(SCREEN_W / scale)
+    win_h = int(SCREEN_H / scale)
     return subprocess.Popen([
         "/snap/bin/chromium",
+        f"--window-size={win_w},{win_h}",
+        "--window-position=0,0",
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-popup-blocking",
