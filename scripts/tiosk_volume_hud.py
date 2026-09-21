@@ -8,7 +8,7 @@ Expanded panel layout (top → bottom):
    M       (mute toggle)
    -       (volume down)
    EQ      (opens equalizer window)
-   ☀       (screen brightness — opens a level picker)
+   ☀       (screen brightness — opens a touch slider)
    🏠      (home — sends current app behind launcher)
 """
 import tkinter as tk
@@ -28,7 +28,13 @@ EQ_SCRIPT = "/home/kiosk/tiosk_eq.sh"
 # cycle, then silently snap back to blinding. Both scripts now read this file.
 BRIGHTNESS_FILE = "/home/kiosk/.tiosk_brightness"
 BRIGHTNESS_FALLBACK_OUTPUT = "DP2"  # only if detection finds nothing
-BRIGHTNESS_LEVELS = [("FULL", 1.0), ("DIM", 0.7), ("DARK", 0.45), ("NIGHT", 0.25)]
+# xrandr --brightness is a gamma multiplier, so there is no hard floor — but
+# below ~8% the picture crushes to mud and the touch targets stop being
+# readable. There is no real backlight control available on this monitor:
+# no /sys/class/backlight (it is not a laptop panel) and ddcutil is not
+# installed, so this is as dark as it gets without new packages.
+BRIGHTNESS_MIN = 0.08
+MIN_PCT = 8
 AUTO_COLLAPSE_SEC = 20  # seconds of inactivity before HUD auto-collapses
 
 # Last time the user interacted with the expanded HUD. expand() and every
@@ -115,31 +121,58 @@ def read_brightness():
     try:
         with open(BRIGHTNESS_FILE) as f:
             v = float(f.read().strip())
-        return v if 0.1 <= v <= 1.0 else 1.0
+        return v if BRIGHTNESS_MIN <= v <= 1.0 else 1.0
     except Exception:
         return 1.0
 
 
-def set_brightness(level):
-    """Apply a level and remember it. Written before it is applied so the dim
-    watcher can never restore a stale value if the two race."""
-    bump_activity()
-    level = max(0.1, min(1.0, float(level)))
-    try:
-        with open(BRIGHTNESS_FILE, "w") as f:
-            f.write("{:.2f}".format(level))
-    except OSError:
-        pass
+def apply_brightness(level, remember=True):
+    """Apply a level now, and remember it for the dim watcher.
+
+    The file is written BEFORE xrandr runs so the dim watcher can never
+    restore a stale value if the two race.
+    """
+    level = max(BRIGHTNESS_MIN, min(1.0, float(level)))
+    if remember:
+        try:
+            with open(BRIGHTNESS_FILE, "w") as f:
+                f.write("{:.2f}".format(level))
+        except OSError:
+            pass
     subprocess.run(["xrandr", "--output", detect_output(),
                     "--brightness", "{:.2f}".format(level)],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    if hasattr(open_brightness, "_win") and open_brightness._win.winfo_exists():
-        open_brightness._win.destroy()
     scr_status.config(text="SCREEN: {}%".format(int(round(level * 100))))
 
 
+# Dragging a slider fires a callback per pixel, and each one would be an
+# xrandr fork. Coalesce: remember the latest value and apply at most every
+# ~60ms, which still reads as live.
+_pending_level = [None]
+_flush_job = [None]
+
+
+def _flush_brightness():
+    _flush_job[0] = None
+    level = _pending_level[0]
+    _pending_level[0] = None
+    if level is not None:
+        apply_brightness(level)
+
+
+def on_slide(val):
+    bump_activity()
+    pct = int(float(val))
+    if hasattr(open_brightness, "_pct"):
+        open_brightness._pct.config(text="{}%".format(pct))
+    _pending_level[0] = pct / 100.0
+    if _flush_job[0] is None:
+        _flush_job[0] = root.after(60, _flush_brightness)
+
+
 def open_brightness():
-    """Level picker, same shape as the EQ window."""
+    """Vertical slider. Tap anywhere on it or drag — this is a touchscreen,
+    so the Tk default (click the trough to page by one step) is useless."""
     bump_activity()
     if hasattr(open_brightness, "_win") and open_brightness._win.winfo_exists():
         open_brightness._win.lift()
@@ -149,24 +182,46 @@ def open_brightness():
     win.title("Screen")
     win.overrideredirect(True)
     win.configure(bg="#000000", cursor="none")
-    W, H = 260, 400
-    win.geometry(f"{W}x{H}+{X + W_EXPANDED + 10}+{Y_EXPANDED}")
+    W, H = 210, 560
+    win.geometry(f"{W}x{H}+{X + W_EXPANDED + 10}+{max(5, Y_EXPANDED)}")
 
     tk.Label(win, text="SCREEN", bg="#000000", fg="#ffd08a",
-             font=("DejaVu Sans", 18, "bold")).pack(pady=(10, 6))
+             font=("DejaVu Sans", 16, "bold")).pack(pady=(8, 2))
 
-    cur = read_brightness()
-    for name, lvl in BRIGHTNESS_LEVELS:
-        on = abs(cur - lvl) < 0.03
-        tk.Button(win, text=f"{name}  {int(lvl*100)}%",
-                  font=("DejaVu Sans", 18, "bold"),
-                  bg="#6e5e2e" if on else "#2a2a2a", fg="#ffffff",
-                  activebackground="#8e7e4e", bd=0, height=2,
-                  command=lambda l=lvl: set_brightness(l)).pack(padx=10, pady=5, fill="x")
+    cur_pct = int(round(read_brightness() * 100))
+    pct_lbl = tk.Label(win, text="{}%".format(cur_pct), bg="#0a0a0a", fg="#ffd08a",
+                       font=("DejaVu Sans", 28, "bold"), pady=6)
+    pct_lbl.pack(padx=8, fill="x")
+    open_brightness._pct = pct_lbl
 
+    scale = tk.Scale(win, from_=100, to=MIN_PCT, orient="vertical",
+                     showvalue=0, width=76, sliderlength=64, length=330,
+                     bg="#1a1a1a", fg="#ffffff", troughcolor="#2e2820",
+                     activebackground="#8e7e4e", highlightthickness=0, bd=0,
+                     command=on_slide)
+    scale.set(cur_pct)
+    scale.pack(pady=(6, 4))
+
+    def jump(e):
+        """Map the touch's y straight onto the value. Tk's own trough click
+        pages by one step, which on a touchscreen feels broken."""
+        sl = 64
+        usable = max(1, scale.winfo_height() - sl)
+        frac = 1.0 - ((e.y - sl / 2.0) / usable)
+        frac = max(0.0, min(1.0, frac))
+        scale.set(int(round(MIN_PCT + frac * (100 - MIN_PCT))))
+        return "break"
+
+    scale.bind("<Button-1>", jump)
+    scale.bind("<B1-Motion>", jump)
+
+    tk.Button(win, text="FULL", font=("DejaVu Sans", 15, "bold"),
+              bg="#6e5e2e", fg="#ffffff", activebackground="#8e7e4e",
+              bd=0, height=1,
+              command=lambda: scale.set(100)).pack(padx=10, pady=(2, 4), fill="x")
     tk.Button(win, text="× CLOSE", font=("DejaVu Sans", 14, "bold"),
               bg="#444444", fg="#ffffff", activebackground="#666666",
-              bd=0, height=1, command=win.destroy).pack(padx=10, pady=(12, 8), fill="x")
+              bd=0, height=1, command=win.destroy).pack(padx=10, pady=(0, 8), fill="x")
 
 
 def apply_eq(preset):
@@ -321,7 +376,7 @@ scr_status.pack(pady=(0, 2))
 # every X start, so without this a dimmed kiosk comes back blinding.
 _saved = read_brightness()
 if _saved < 1.0:
-    set_brightness(_saved)
+    apply_brightness(_saved, remember=False)
 else:
     scr_status.config(text="SCREEN: 100%")
 

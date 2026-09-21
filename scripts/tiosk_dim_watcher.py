@@ -69,7 +69,9 @@ def full_level():
     try:
         with open(BRIGHTNESS_FILE) as f:
             v = float(f.read().strip())
-        return v if 0.1 <= v <= 1.0 else DEFAULT_LEVEL
+        # Floor must stay <= the HUD's BRIGHTNESS_MIN (0.08) — a stricter
+        # bound here silently rejects the darkest levels and restores FULL.
+        return v if 0.05 <= v <= 1.0 else DEFAULT_LEVEL
     except Exception:
         return DEFAULT_LEVEL
 
